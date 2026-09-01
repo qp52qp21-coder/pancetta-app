@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>パンチェッタ熟成手帳</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#B14A5A">
+<style>
+  /* ===== 配色は3色ルール：生成り背景 / 濃茶 / パンチェッタ・ローズ ===== */
+  :root{
+    --cream:#FAF5EE;
+    --cream-deep:#F1E8DC;
+    --brown:#3B2A22;
+    --brown-soft:#7A6558;
+    --rose:#B14A5A;
+    --rose-soft:#E7CBCF;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--cream);color:var(--brown);
+    font-family:"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic Medium","Yu Gothic",sans-serif;
+    font-size:16px;line-height:1.6;}
+  .app{max-width:480px;margin:0 auto;padding:0 16px 90px;}
+
+  /* ヘッダー */
+  header{padding:22px 4px 10px;}
+  header h1{font-size:22px;letter-spacing:.08em;font-weight:700;}
+  header h1 .spiral{display:inline-block;margin-right:6px;transform:translateY(3px);}
+  header p{font-size:12px;color:var(--brown-soft);letter-spacing:.05em;}
+
+  /* タブ（下部固定） */
+  nav{position:fixed;left:0;right:0;bottom:0;background:var(--cream);
+    border-top:1px solid var(--cream-deep);display:flex;max-width:480px;margin:0 auto;z-index:50;}
+  nav button{flex:1;padding:12px 0 14px;background:none;border:none;font:inherit;
+    font-size:13px;color:var(--brown-soft);cursor:pointer;}
+  nav button.active{color:var(--rose);font-weight:700;}
+  nav button .ico{display:block;font-size:18px;line-height:1.2;}
+
+  section{display:none;}
+  section.show{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  h2{font-size:15px;letter-spacing:.12em;color:var(--brown-soft);margin:18px 2px 10px;
+    font-weight:700;}
+
+  .card{background:#fff;border:1px solid var(--cream-deep);border-radius:var(--radius);
+    padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(59,42,34,.06);}
+
+  /* ===== 仕込みカード ===== */
+  .batch-head{display:flex;align-items:center;gap:14px;}
+  .ring-wrap{position:relative;width:88px;height:88px;flex-shrink:0;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-bg{fill:none;stroke:var(--cream-deep);stroke-width:8;}
+  .ring-fg{fill:none;stroke:var(--rose);stroke-width:8;stroke-linecap:round;
+    transition:stroke-dashoffset .6s ease;}
+  .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;line-height:1.15;}
+  .ring-center .day{font-size:20px;font-weight:700;color:var(--rose);}
+  .ring-center .total{font-size:11px;color:var(--brown-soft);}
+
+  .batch-info{flex:1;min-width:0;}
+  .batch-info .name{font-size:17px;font-weight:700;word-break:break-all;}
+  .stage-badge{display:inline-block;font-size:12px;font-weight:700;color:#fff;
+    background:var(--rose);border-radius:999px;padding:2px 10px;margin:4px 0;}
+  .stage-badge.done{background:var(--brown);}
+  .batch-info .sub{font-size:12px;color:var(--brown-soft);}
+
+  .batch-meta{display:flex;gap:8px;margin-top:12px;}
+  .meta-box{flex:1;background:var(--cream);border-radius:10px;padding:8px 6px;text-align:center;}
+  .meta-box .v{font-size:15px;font-weight:700;}
+  .meta-box .l{font-size:10px;color:var(--brown-soft);letter-spacing:.05em;}
+
+  .stage-bar{display:flex;margin-top:12px;border-radius:999px;overflow:hidden;height:10px;
+    background:var(--cream-deep);}
+  .stage-bar .s1{background:var(--rose-soft);}
+  .stage-bar .s2{background:var(--rose);}
+  .stage-labels{display:flex;justify-content:space-between;font-size:10px;
+    color:var(--brown-soft);margin-top:3px;}
+
+  .btn-row{display:flex;gap:8px;margin-top:12px;}
+  button.btn{flex:1;font:inherit;font-size:14px;font-weight:700;padding:10px 0;
+    border-radius:10px;border:1.5px solid var(--rose);background:#fff;color:var(--rose);
+    cursor:pointer;}
+  button.btn.primary{background:var(--rose);color:#fff;}
+  button.btn.quiet{border-color:var(--cream-deep);color:var(--brown-soft);flex:0 0 auto;
+    padding:10px 14px;}
+
+  .empty{padding:36px 12px;text-align:center;color:var(--brown-soft);font-size:14px;}
+  .empty .spiral{font-size:34px;display:block;margin-bottom:8px;}
+
+  /* ===== フォーム ===== */
+  label{display:block;font-size:12px;font-weight:700;color:var(--brown-soft);
+    margin:14px 2px 4px;letter-spacing:.05em;}
+  input[type=text],input[type=number],input[type=date],textarea{
+    width:100%;font:inherit;font-size:16px;padding:10px 12px;border-radius:10px;
+    border:1.5px solid var(--cream-deep);background:#fff;color:var(--brown);}
+  input:focus,textarea:focus{outline:2px solid var(--rose);outline-offset:1px;}
+  .row2{display:flex;gap:10px;}
+  .row2>div{flex:1;}
+
+  .preset-row{display:flex;gap:8px;margin-top:6px;}
+  .preset{flex:1;font:inherit;font-size:12.5px;font-weight:700;padding:9px 4px;
+    border-radius:10px;border:1.5px solid var(--cream-deep);background:#fff;
+    color:var(--brown-soft);cursor:pointer;line-height:1.4;}
+  .preset.on{border-color:var(--rose);color:var(--rose);background:var(--rose-soft);}
+
+  .calc-result{margin-top:14px;background:var(--cream);border-radius:12px;
+    padding:14px;display:flex;gap:10px;text-align:center;}
+  .calc-result>div{flex:1;}
+  .calc-result .v{font-size:22px;font-weight:700;color:var(--rose);}
+  .calc-result .v small{font-size:13px;}
+  .calc-result .l{font-size:11px;color:var(--brown-soft);}
+
+  /* ===== アーカイブ ===== */
+  .arch-name{font-size:16px;font-weight:700;}
+  .stars{color:var(--rose);font-size:16px;letter-spacing:2px;}
+  .arch-sub{font-size:12px;color:var(--brown-soft);margin-top:2px;}
+  .arch-memo{font-size:13.5px;margin-top:8px;background:var(--cream);
+    border-radius:10px;padding:8px 10px;white-space:pre-wrap;}
+
+  /* ===== モーダル ===== */
+  .modal-bg{position:fixed;inset:0;background:rgba(59,42,34,.45);display:none;
+    align-items:flex-end;justify-content:center;z-index:100;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--cream);width:100%;max-width:480px;border-radius:18px 18px 0 0;
+    padding:20px 18px 28px;max-height:85vh;overflow-y:auto;}
+  .modal h3{font-size:16px;margin-bottom:4px;}
+  .modal .close-x{float:right;border:none;background:none;font-size:20px;
+    color:var(--brown-soft);cursor:pointer;padding:0 4px;}
+  .star-input{display:flex;gap:6px;margin-top:6px;}
+  .star-input button{font-size:28px;background:none;border:none;cursor:pointer;
+    color:var(--cream-deep);padding:2px;}
+  .star-input button.on{color:var(--rose);}
+
+  .weight-log{font-size:13px;margin-top:10px;}
+  .weight-log li{display:flex;justify-content:space-between;padding:5px 2px;
+    border-bottom:1px dashed var(--cream-deep);list-style:none;}
+  .weight-log .loss{color:var(--rose);font-weight:700;}
+
+  .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
+    background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
+    border-radius:999px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:200;
+    white-space:nowrap;}
+  .toast.show{opacity:1;}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1><span class="spiral">🌀</span>パンチェッタ熟成手帳</h1>
+    <p>仕込みから完成まで、熟成のすべてを記録する</p>
+  </header>
+
+  <!-- ===== 仕込み中 ===== -->
+  <section id="tab-home" class="show">
+    <h2>熟成中の仕込み</h2>
+    <div id="batch-list"></div>
+  </section>
+
+  <!-- ===== 新規仕込み ===== -->
+  <section id="tab-new">
+    <h2>配合計算</h2>
+    <div class="card">
+      <label>肉の重量（g）</label>
+      <input type="number" id="in-weight" inputmode="decimal" placeholder="例：460" oninput="calc()">
+      <label>配合プリセット</label>
+      <div class="preset-row">
+        <button class="preset" id="p1" onclick="setPreset(4,0.5,this)">しっかり塩味<br>塩4% / 砂糖0.5%</button>
+        <button class="preset on" id="p2" onclick="setPreset(3,1,this)">塩控えめ甘め<br>塩3% / 砂糖1%</button>
+      </div>
+      <div class="row2">
+        <div><label>塩（%）</label><input type="number" id="in-salt" inputmode="decimal" step="0.1" value="3" oninput="calc(true)"></div>
+        <div><label>砂糖（%）</label><input type="number" id="in-sugar" inputmode="decimal" step="0.1" value="1" oninput="calc(true)"></div>
+      </div>
+      <div class="calc-result">
+        <div><div class="v" id="out-salt">–<small> g</small></div><div class="l">塩</div></div>
+        <div><div class="v" id="out-sugar">–<small> g</small></div><div class="l">砂糖</div></div>
+      </div>
+    </div>
+
+    <h2>仕込みを登録</h2>
+    <div class="card">
+      <label>仕込み名</label>
+      <input type="text" id="in-name" placeholder="例：チリパウダー入り 2本目">
+      <label>仕込み開始日</label>
+      <input type="date" id="in-date">
+      <div class="row2">
+        <div><label>塩漬け（日）</label><input type="number" id="in-d1" inputmode="numeric" value="7"></div>
+        <div><label>スパイス熟成（日）</label><input type="number" id="in-d2" inputmode="numeric" value="7"></div>
+      </div>
+      <label>スパイス・メモ（任意）</label>
+      <input type="text" id="in-spice" placeholder="例：黒コショウ＋チリパウダー">
+      <div class="btn-row">
+        <button class="btn primary" onclick="addBatch()">この内容で仕込む</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== アーカイブ ===== -->
+  <section id="tab-arch">
+    <h2>完成アーカイブ</h2>
+    <div id="arch-list"></div>
+  </section>
+
+  <nav>
+    <button id="nav-home" class="active" onclick="showTab('home')"><span class="ico">🥓</span>熟成中</button>
+    <button id="nav-new" onclick="showTab('new')"><span class="ico">＋</span>新規仕込み</button>
+    <button id="nav-arch" onclick="showTab('arch')"><span class="ico">📖</span>アーカイブ</button>
+  </nav>
+</div>
+
+<!-- 重量記録モーダル -->
+<div class="modal-bg" id="modal-weight">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modal-weight')">✕</button>
+    <h3>重量を記録</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="mw-name"></p>
+    <label>今日の重量（g）</label>
+    <input type="number" id="mw-grams" inputmode="decimal" placeholder="例：420">
+    <div class="btn-row"><button class="btn primary" onclick="saveWeight()">記録する</button></div>
+    <ul class="weight-log" id="mw-log"></ul>
+  </div>
+</div>
+
+<!-- 完成モーダル -->
+<div class="modal-bg" id="modal-done">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modal-done')">✕</button>
+    <h3>完成おめでとうございます 🎉</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="md-name"></p>
+    <label>味の評価</label>
+    <div class="star-input" id="md-stars"></div>
+    <label>味のメモ（次回の改善に）</label>
+    <textarea id="md-memo" rows="3" placeholder="例：塩3%はちょうど良い。次はチリ多めに。"></textarea>
+    <div class="btn-row"><button class="btn primary" onclick="saveDone()">アーカイブに保存</button></div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="modal-bg" id="modal-del">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modal-del')">✕</button>
+    <h3>この仕込みを削除しますか？</h3>
+    <p style="font-size:12px;color:var(--brown-soft);margin-top:4px;" id="dl-name"></p>
+    <p style="font-size:12px;color:var(--brown-soft);">削除すると記録は元に戻せません。</p>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-del')">やめる</button>
+      <button class="btn primary" onclick="confirmDel()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   パンチェッタ熟成手帳
+   データ構造：
+   batch = { id, name, startDate(YYYY-MM-DD), d1, d2, saltPct, sugarPct,
+             meatWeight, spice, weights:[{date,grams}],
+             status:'curing'|'done', rating, memo, doneDate }
+   ============================================================ */
+const KEY = 'pancetta-batches';
+let batches = [];
+let modalTarget = null;   // モーダル対象の batch id
+let starVal = 0;
+
+/* ---------- 保存・読込（localStorage：スマホのブラウザに永続保存） ---------- */
+function load(){
+  try{
+    const r = localStorage.getItem(KEY);
+    if(r) batches = JSON.parse(r);
+  }catch(e){ /* 初回はデータが無いだけなので無視 */ }
+  render();
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(batches)); }
+  catch(e){ toast('保存に失敗しました'); }
+}
+
+/* ---------- 日付ユーティリティ ---------- */
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function addDays(s,n){ const d=parseD(s); d.setDate(d.getDate()+n); return d; }
+function fmt(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
+function daysElapsed(start){
+  const ms = new Date(new Date().toDateString()) - parseD(start);
+  return Math.floor(ms/86400000);   // 開始日=0日目
+}
+
+/* ---------- 配合計算 ---------- */
+function setPreset(salt,sugar,btn){
+  document.getElementById('in-salt').value = salt;
+  document.getElementById('in-sugar').value = sugar;
+  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  calc();
+}
+function calc(manual){
+  if(manual) document.querySelectorAll('.preset').forEach(b=>b.classList.remove('on'));
+  const w = parseFloat(document.getElementById('in-weight').value);
+  const s = parseFloat(document.getElementById('in-salt').value);
+  const g = parseFloat(document.getElementById('in-sugar').value);
+  document.getElementById('out-salt').innerHTML  = (w>0&&s>=0)? (w*s/100).toFixed(1)+'<small> g</small>' : '–<small> g</small>';
+  document.getElementById('out-sugar').innerHTML = (w>0&&g>=0)? (w*g/100).toFixed(1)+'<small> g</small>' : '–<small> g</small>';
+}
+
+/* ---------- 仕込み登録 ---------- */
+function addBatch(){
+  const w  = parseFloat(document.getElementById('in-weight').value) || 0;
+  const name = document.getElementById('in-name').value.trim() || 'パンチェッタ';
+  const date = document.getElementById('in-date').value || todayStr();
+  const d1 = parseInt(document.getElementById('in-d1').value)||7;
+  const d2 = parseInt(document.getElementById('in-d2').value)||7;
+  const b = {
+    id: Date.now().toString(36),
+    name, startDate: date, d1, d2,
+    saltPct : parseFloat(document.getElementById('in-salt').value)||0,
+    sugarPct: parseFloat(document.getElementById('in-sugar').value)||0,
+    meatWeight: w,
+    spice: document.getElementById('in-spice').value.trim(),
+    weights: w>0 ? [{date, grams:w}] : [],
+    status:'curing', rating:0, memo:'', doneDate:null
+  };
+  batches.unshift(b);
+  save(); render();
+  document.getElementById('in-name').value='';
+  document.getElementById('in-spice').value='';
+  showTab('home');
+  toast('仕込みを登録しました 🥓');
+}
+
+/* ---------- 描画 ---------- */
+function render(){
+  /* --- 熟成中 --- */
+  const list = document.getElementById('batch-list');
+  const curing = batches.filter(b=>b.status==='curing');
+  if(curing.length===0){
+    list.innerHTML = '<div class="card empty"><span class="spiral">🌀</span>'
+      +'熟成中の仕込みはありません。<br>「＋ 新規仕込み」から始めましょう。</div>';
+  }else{
+    list.innerHTML = curing.map(b=>{
+      const total = b.d1+b.d2;
+      const day = daysElapsed(b.startDate);          // 0=仕込み当日
+      const dayDisp = Math.min(day, total);
+      const doneDay = addDays(b.startDate, total);
+      let stage, badgeCls='', sub;
+      if(day < b.d1){
+        stage='塩漬け中';
+        sub = 'あと'+(b.d1-day)+'日でスパイス工程（'+fmt(addDays(b.startDate,b.d1))+'〜）';
+      }else if(day < total){
+        stage='スパイス熟成中';
+        sub = '完成まであと'+(total-day)+'日（'+fmt(doneDay)+' 完成予定）';
+      }else{
+        stage='熟成完了！'; badgeCls='done';
+        sub = fmt(doneDay)+' に熟成期間が終了しています';
+      }
+      const pct = Math.min(day/total,1);
+      const C = 2*Math.PI*40;
+      /* 重量減少率 */
+      let lossHtml='–';
+      if(b.weights.length>=1 && b.weights[0].grams>0){
+        const first=b.weights[0].grams, last=b.weights[b.weights.length-1].grams;
+        lossHtml = first===last ? '0%' : '-'+(((first-last)/first)*100).toFixed(1)+'%';
+      }
+      const gouhai = b.saltPct? '塩'+b.saltPct+'% / 砂糖'+b.sugarPct+'%' : '配合未登録';
+      return `
+      <div class="card">
+        <div class="batch-head">
+          <div class="ring-wrap">
+            <svg width="88" height="88" viewBox="0 0 88 88">
+              <circle class="ring-bg" cx="44" cy="44" r="40"></circle>
+              <circle class="ring-fg" cx="44" cy="44" r="40"
+                stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}"></circle>
+            </svg>
+            <div class="ring-center"><span class="day">${dayDisp}日目</span><span class="total">/ ${total}日</span></div>
+          </div>
+          <div class="batch-info">
+            <div class="name">${esc(b.name)}</div>
+            <span class="stage-badge ${badgeCls}">${stage}</span>
+            <div class="sub">${sub}</div>
+            <div class="sub">${gouhai}${b.spice? ' ・ '+esc(b.spice):''}</div>
+          </div>
+        </div>
+        <div class="stage-bar">
+          <div class="s1" style="width:${b.d1/total*100}%"></div>
+          <div class="s2" style="width:${b.d2/total*100}%"></div>
+        </div>
+        <div class="stage-labels"><span>塩漬け ${b.d1}日</span><span>スパイス ${b.d2}日</span></div>
+        <div class="batch-meta">
+          <div class="meta-box"><div class="v">${b.meatWeight||'–'}g</div><div class="l">仕込み重量</div></div>
+          <div class="meta-box"><div class="v">${lossHtml}</div><div class="l">重量変化</div></div>
+          <div class="meta-box"><div class="v">${fmt(doneDay)}</div><div class="l">完成予定</div></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="openWeight('${b.id}')">重量を記録</button>
+          <button class="btn primary" onclick="openDone('${b.id}')">完成にする</button>
+          <button class="btn quiet" onclick="delBatch('${b.id}')">削除</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  /* --- アーカイブ --- */
+  const arch = document.getElementById('arch-list');
+  const done = batches.filter(b=>b.status==='done');
+  if(done.length===0){
+    arch.innerHTML = '<div class="card empty"><span class="spiral">📖</span>'
+      +'完成した仕込みはまだありません。<br>完成したらここに味の記録が並びます。</div>';
+  }else{
+    arch.innerHTML = done.map(b=>{
+      let loss='';
+      if(b.weights.length>=2){
+        const f=b.weights[0].grams,l=b.weights[b.weights.length-1].grams;
+        loss='・重量 -'+(((f-l)/f)*100).toFixed(1)+'%';
+      }
+      return `
+      <div class="card">
+        <div class="arch-name">${esc(b.name)}</div>
+        <div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>
+        <div class="arch-sub">${b.startDate.replaceAll('-','/')} 仕込み ・ 塩${b.saltPct}% / 砂糖${b.sugarPct}% ${loss}</div>
+        ${b.spice? '<div class="arch-sub">スパイス：'+esc(b.spice)+'</div>':''}
+        ${b.memo? '<div class="arch-memo">'+esc(b.memo)+'</div>':''}
+        <div class="btn-row"><button class="btn quiet" onclick="delBatch('${b.id}')">削除</button></div>
+      </div>`;
+    }).join('');
+  }
+}
+function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- 重量記録 ---------- */
+function openWeight(id){
+  modalTarget = id;
+  const b = batches.find(x=>x.id===id);
+  document.getElementById('mw-name').textContent = b.name;
+  document.getElementById('mw-grams').value='';
+  const log = document.getElementById('mw-log');
+  const first = b.weights.length? b.weights[0].grams : 0;
+  log.innerHTML = b.weights.map(w=>{
+    const loss = first>0 && w.grams!==first ? '<span class="loss">-'+(((first-w.grams)/first)*100).toFixed(1)+'%</span>' : '<span>基準</span>';
+    return '<li><span>'+w.date.replaceAll('-','/')+'</span><span>'+w.grams+'g</span>'+loss+'</li>';
+  }).join('') || '<li><span>記録なし</span></li>';
+  document.getElementById('modal-weight').classList.add('show');
+}
+function saveWeight(){
+  const g = parseFloat(document.getElementById('mw-grams').value);
+  if(!(g>0)){ toast('重量を入力してください'); return; }
+  const b = batches.find(x=>x.id===modalTarget);
+  b.weights.push({date:todayStr(), grams:g});
+  save(); render();
+  closeModal('modal-weight');
+  toast('重量を記録しました');
+}
+
+/* ---------- 完成処理 ---------- */
+function openDone(id){
+  modalTarget = id; starVal = 0;
+  const b = batches.find(x=>x.id===id);
+  document.getElementById('md-name').textContent = b.name;
+  document.getElementById('md-memo').value='';
+  renderStars();
+  document.getElementById('modal-done').classList.add('show');
+}
+function renderStars(){
+  const box = document.getElementById('md-stars');
+  box.innerHTML='';
+  for(let i=1;i<=5;i++){
+    const btn=document.createElement('button');
+    btn.textContent='★';
+    if(i<=starVal) btn.classList.add('on');
+    btn.onclick=()=>{ starVal=i; renderStars(); };
+    box.appendChild(btn);
+  }
+}
+function saveDone(){
+  const b = batches.find(x=>x.id===modalTarget);
+  b.status='done';
+  b.rating=starVal;
+  b.memo=document.getElementById('md-memo').value.trim();
+  b.doneDate=todayStr();
+  save(); render();
+  closeModal('modal-done');
+  showTab('arch');
+  toast('アーカイブに保存しました 🎉');
+}
+
+/* ---------- 共通 ---------- */
+let delTarget = null;
+function delBatch(id){
+  delTarget = id;
+  const b = batches.find(x=>x.id===id);
+  document.getElementById('dl-name').textContent = b ? b.name : '';
+  document.getElementById('modal-del').classList.add('show');
+}
+function confirmDel(){
+  batches = batches.filter(b=>b.id!==delTarget);
+  delTarget = null;
+  save(); render();
+  closeModal('modal-del');
+  toast('削除しました');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function showTab(t){
+  ['home','new','arch'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('show', x===t);
+    document.getElementById('nav-'+x).classList.toggle('active', x===t);
+  });
+  window.scrollTo(0,0);
+}
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+/* ---------- 初期化 ---------- */
+document.getElementById('in-date').value = todayStr();
+load();
+</script>
+</body>
+</html>
