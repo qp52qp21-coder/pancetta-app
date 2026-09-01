@@ -161,8 +161,8 @@
 
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
     background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
-    border-radius:999px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:200;
-    white-space:nowrap;}
+    border-radius:999px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:90;
+    white-space:nowrap;}   /* モーダル(100)より下。モーダル表示中は文面に重ならない */
   .toast.show{opacity:1;}
   @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
 </style>
