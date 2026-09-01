@@ -100,8 +100,14 @@
   .notice li+li{border-top:1px dashed var(--rose);}
   .notice li b{font-weight:700;}
 
-  .empty{padding:36px 12px;text-align:center;color:var(--brown-soft);font-size:14px;}
-  .empty .spiral{font-size:34px;display:block;margin-bottom:8px;}
+  .empty{padding:32px 12px 36px;text-align:center;color:var(--brown-soft);font-size:14px;}
+  .empty .pig{margin-bottom:6px;}
+
+  /* 豚さん */
+  .pig{vertical-align:middle;overflow:visible;}
+  header .pig{margin-right:2px;}
+  .arch-name .pig{margin-right:5px;}
+  .md-pig{text-align:center;padding-top:6px;}
 
   /* ===== フォーム ===== */
   label{display:block;font-size:12px;font-weight:700;color:var(--brown-soft);
@@ -171,7 +177,7 @@
 <div class="app">
 
   <header>
-    <h1><span class="spiral">🌀</span>パンチェッタ熟成手帳</h1>
+    <h1><span class="spiral" id="logo"></span>パンチェッタ熟成手帳</h1>
     <p>仕込みから完成まで、熟成のすべてを記録する</p>
   </header>
 
@@ -251,8 +257,9 @@
 <div class="modal-bg" id="modal-done">
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-done')">✕</button>
-    <h3>完成おめでとうございます 🎉</h3>
-    <p style="font-size:12px;color:var(--brown-soft);" id="md-name"></p>
+    <div class="md-pig" id="md-pig"></div>
+    <h3 style="text-align:center;">完成おめでとうございます 🎉</h3>
+    <p style="font-size:12px;color:var(--brown-soft);text-align:center;" id="md-name"></p>
     <label>味の評価</label>
     <div class="star-input" id="md-stars"></div>
     <label>味のメモ（次回の改善に）</label>
@@ -315,6 +322,37 @@ function load(){
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(batches)); }
   catch(e){ toast('保存に失敗しました'); }
+}
+
+/* ---------- 豚さん（SVGイラスト） ----------
+   絵文字だと端末ごとに絵柄と色が変わるため、3色ルールに合わせて自前で描く。
+   mood: 'calm'（ふつう） / 'sleep'（おやすみ） / 'happy'（うれしい） */
+function pig(size, mood){
+  const eyes =
+    mood==='sleep' ? '<path d="M19.5 30q4 4 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
+                   + '<path d="M36.5 30q4 4 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
+  : mood==='happy' ? '<path d="M19.5 31q4-5 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
+                   + '<path d="M36.5 31q4-5 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
+  :                  '<circle cx="23.5" cy="29.5" r="2.5" fill="#3B2A22"/>'
+                   + '<circle cx="40.5" cy="29.5" r="2.5" fill="#3B2A22"/>';
+  const extra = mood==='sleep'
+    ? '<text x="52" y="16" font-size="11" font-weight="700" fill="#B14A5A" opacity=".55">z</text>'
+    + '<text x="45" y="9" font-size="8" font-weight="700" fill="#B14A5A" opacity=".4">z</text>'
+    : mood==='happy'
+    ? '<path d="M9 16v6M6 19h6M55 12v5M52.5 14.5h5" stroke="#B14A5A" stroke-width="2" stroke-linecap="round" opacity=".6"/>'
+    : '';
+  return `<svg class="pig" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">
+    <path d="M16 21Q12.5 7 25 13Z" fill="#E7CBCF" stroke="#B14A5A" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 21Q51.5 7 39 13Z" fill="#E7CBCF" stroke="#B14A5A" stroke-width="2.4" stroke-linejoin="round"/>
+    <ellipse cx="32" cy="33" rx="21" ry="19" fill="#E7CBCF" stroke="#B14A5A" stroke-width="2.4"/>
+    <ellipse cx="16.5" cy="36.5" rx="4" ry="2.6" fill="#B14A5A" opacity=".3"/>
+    <ellipse cx="47.5" cy="36.5" rx="4" ry="2.6" fill="#B14A5A" opacity=".3"/>
+    ${eyes}
+    <ellipse cx="32" cy="40" rx="10" ry="7.5" fill="#FAF5EE" stroke="#B14A5A" stroke-width="2.4"/>
+    <ellipse cx="28.4" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
+    <ellipse cx="35.6" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
+    ${extra}
+  </svg>`;
 }
 
 /* ---------- 日付ユーティリティ ---------- */
@@ -431,8 +469,8 @@ function render(){
   const list = document.getElementById('batch-list');
   const curing = batches.filter(b=>b.status==='curing');
   if(curing.length===0){
-    list.innerHTML = '<div class="card empty"><span class="spiral">🌀</span>'
-      +'熟成中の仕込みはありません。<br>「＋ 新規仕込み」から始めましょう。</div>';
+    list.innerHTML = '<div class="card empty">'+pig(76,'sleep')
+      +'<br>熟成中の仕込みはありません。<br>「＋ 新規仕込み」から始めましょう。</div>';
   }else{
     list.innerHTML = curing.map(b=>{
       const total = b.d1+b.d2;
@@ -504,8 +542,8 @@ function render(){
   const arch = document.getElementById('arch-list');
   const done = batches.filter(b=>b.status==='done');
   if(done.length===0){
-    arch.innerHTML = '<div class="card empty"><span class="spiral">📖</span>'
-      +'完成した仕込みはまだありません。<br>完成したらここに味の記録が並びます。</div>';
+    arch.innerHTML = '<div class="card empty">'+pig(76,'happy')
+      +'<br>完成した仕込みはまだありません。<br>完成したらここに味の記録が並びます。</div>';
   }else{
     arch.innerHTML = done.map(b=>{
       let loss='';
@@ -515,7 +553,7 @@ function render(){
       }
       return `
       <div class="card">
-        <div class="arch-name">${esc(b.name)}</div>
+        <div class="arch-name">${pig(24,'happy')}${esc(b.name)}</div>
         <div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>
         <div class="arch-sub">${b.startDate.replaceAll('-','/')} 仕込み ・ 塩${b.saltPct}% / 砂糖${b.sugarPct}% ${loss}</div>
         ${b.spice? '<div class="arch-sub">スパイス：'+esc(b.spice)+'</div>':''}
@@ -638,6 +676,8 @@ function toast(msg){
 }
 
 /* ---------- 初期化 ---------- */
+document.getElementById('logo').innerHTML   = pig(32,'calm');
+document.getElementById('md-pig').innerHTML = pig(64,'happy');
 document.getElementById('in-date').value = todayStr();
 load();
 </script>
