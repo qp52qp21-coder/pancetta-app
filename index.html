@@ -81,12 +81,24 @@
     color:var(--brown-soft);margin-top:3px;}
 
   .btn-row{display:flex;gap:8px;margin-top:12px;}
+  .btn-row.tight{margin-top:8px;}
   button.btn{flex:1;font:inherit;font-size:14px;font-weight:700;padding:10px 0;
     border-radius:10px;border:1.5px solid var(--rose);background:#fff;color:var(--rose);
     cursor:pointer;}
   button.btn.primary{background:var(--rose);color:#fff;}
   button.btn.quiet{border-color:var(--cream-deep);color:var(--brown-soft);flex:0 0 auto;
     padding:10px 14px;}
+  button.btn.cal{border-color:var(--rose-soft);font-size:13px;}
+  button.btn.cal.reg{border-color:var(--cream-deep);color:var(--brown-soft);}
+
+  /* ===== お知らせカード（起動時の気づき） ===== */
+  .notice{background:var(--rose-soft);border:1px solid var(--rose);border-radius:var(--radius);
+    padding:13px 16px;margin-bottom:14px;}
+  .notice h3{font-size:13px;color:var(--rose);letter-spacing:.1em;margin-bottom:6px;}
+  .notice ul{list-style:none;}
+  .notice li{font-size:13.5px;padding:4px 0;}
+  .notice li+li{border-top:1px dashed var(--rose);}
+  .notice li b{font-weight:700;}
 
   .empty{padding:36px 12px;text-align:center;color:var(--brown-soft);font-size:14px;}
   .empty .spiral{font-size:34px;display:block;margin-bottom:8px;}
@@ -135,6 +147,13 @@
     color:var(--cream-deep);padding:2px;}
   .star-input button.on{color:var(--rose);}
 
+  /* カレンダー登録リンク */
+  .cal-link{display:block;margin-top:10px;text-decoration:none;background:#fff;
+    border:1.5px solid var(--rose);border-radius:12px;padding:11px 14px;}
+  .cal-link .cal-date{display:block;font-size:11.5px;font-weight:700;
+    color:var(--brown-soft);letter-spacing:.06em;}
+  .cal-link .cal-label{display:block;font-size:15px;font-weight:700;color:var(--rose);}
+
   .weight-log{font-size:13px;margin-top:10px;}
   .weight-log li{display:flex;justify-content:space-between;padding:5px 2px;
     border-bottom:1px dashed var(--cream-deep);list-style:none;}
@@ -158,6 +177,7 @@
 
   <!-- ===== 仕込み中 ===== -->
   <section id="tab-home" class="show">
+    <div id="notice-box"></div>
     <h2>熟成中の仕込み</h2>
     <div id="batch-list"></div>
   </section>
@@ -255,6 +275,20 @@
   </div>
 </div>
 
+<!-- 通知（カレンダー登録）モーダル -->
+<div class="modal-bg" id="modal-cal">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modal-cal')">✕</button>
+    <h3>🔔 通知をカレンダーに登録</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="mc-name"></p>
+    <p style="font-size:13px;margin-top:12px;">下のボタンを押すとGoogleカレンダーが開きます。内容は入力済みなので「保存」を押すだけです。</p>
+    <div id="mc-links"></div>
+    <p style="font-size:11.5px;color:var(--brown-soft);margin-top:12px;line-height:1.55;">
+      ※通知が鳴る時刻はGoogleカレンダーの設定に従います（既定では予定の30分前）。ちょうど5:00に鳴らすには、カレンダー側で通知を「0分前」に変更してください。</p>
+    <div class="btn-row"><button class="btn" onclick="closeModal('modal-cal')">閉じる</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -291,9 +325,58 @@ function todayStr(){
 function parseD(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 function addDays(s,n){ const d=parseD(s); d.setDate(d.getDate()+n); return d; }
 function fmt(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
+const WD = ['日','月','火','水','木','金','土'];
+function fmtW(d){ return fmt(d)+'('+WD[d.getDay()]+')'; }   // 例：9/9(火)
 function daysElapsed(start){
   const ms = new Date(new Date().toDateString()) - parseD(start);
   return Math.floor(ms/86400000);   // 開始日=0日目
+}
+
+/* ---------- カレンダー通知 ----------
+   サーバーを持たない静的サイトのため、通知は端末のカレンダーアプリに任せる。
+   Googleカレンダーの「予定作成」画面を、内容が入った状態で開くURLを組み立てる。 */
+const NOTIFY_H = 5;   // 予定の開始時刻（朝5時）
+
+function stamp(d,h,mi){
+  const p = n=>String(n).padStart(2,'0');
+  return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(h)+p(mi)+'00';
+}
+function gcalUrl(title, day, details){
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text='    + encodeURIComponent(title)
+    + '&dates='   + stamp(day,NOTIFY_H,0) + '/' + stamp(day,NOTIFY_H,15)
+    + '&details=' + encodeURIComponent(details)
+    + '&ctz=Asia/Tokyo';
+}
+function calDetails(b){
+  let t = 'パンチェッタ熟成手帳より\n';
+  if(b.saltPct) t += '配合：塩'+b.saltPct+'% / 砂糖'+b.sugarPct+'%\n';
+  t += '仕込み開始：'+b.startDate.replaceAll('-','/');
+  if(b.spice) t += '\nスパイス：'+b.spice;
+  return t;
+}
+function calLink(url, day, label){
+  return '<a class="cal-link" href="'+esc(url)+'" target="_blank" rel="noopener" onclick="markCal()">'
+    + '<span class="cal-date">'+fmtW(day)+' '+NOTIFY_H+':00</span>'
+    + '<span class="cal-label">'+label+'</span></a>';
+}
+function openCal(id){
+  const b = batches.find(x=>x.id===id);
+  if(!b) return;
+  modalTarget = id;
+  document.getElementById('mc-name').textContent = b.name;
+  const dSpice = addDays(b.startDate, b.d1);
+  const dDone  = addDays(b.startDate, b.d1+b.d2);
+  const det = calDetails(b);
+  document.getElementById('mc-links').innerHTML =
+      calLink(gcalUrl('🥓 '+b.name+'：スパイスをまぶす日', dSpice, det), dSpice, 'スパイスをまぶす日')
+    + calLink(gcalUrl('🥓 '+b.name+'：熟成完了・味見の日', dDone,  det), dDone,  '熟成完了・味見の日');
+  document.getElementById('modal-cal').classList.add('show');
+}
+/* リンクを押した＝カレンダーへ送った、とみなして記録する */
+function markCal(){
+  const b = batches.find(x=>x.id===modalTarget);
+  if(b && !b.calReg){ b.calReg = true; save(); render(); }
 }
 
 /* ---------- 配合計算 ---------- */
@@ -328,7 +411,8 @@ function addBatch(){
     meatWeight: w,
     spice: document.getElementById('in-spice').value.trim(),
     weights: w>0 ? [{date, grams:w}] : [],
-    status:'curing', rating:0, memo:'', doneDate:null
+    status:'curing', rating:0, memo:'', doneDate:null,
+    calReg:false                       // カレンダーへ通知を登録したか
   };
   batches.unshift(b);
   save(); render();
@@ -336,10 +420,13 @@ function addBatch(){
   document.getElementById('in-spice').value='';
   showTab('home');
   toast('仕込みを登録しました 🥓');
+  /* 登録直後が最も設定しやすいので、通知登録の画面を続けて開く */
+  setTimeout(()=>openCal(b.id), 400);
 }
 
 /* ---------- 描画 ---------- */
 function render(){
+  renderNotice();
   /* --- 熟成中 --- */
   const list = document.getElementById('batch-list');
   const curing = batches.filter(b=>b.status==='curing');
@@ -405,6 +492,10 @@ function render(){
           <button class="btn primary" onclick="openDone('${b.id}')">完成にする</button>
           <button class="btn quiet" onclick="delBatch('${b.id}')">削除</button>
         </div>
+        <div class="btn-row tight">
+          <button class="btn cal ${b.calReg?'reg':''}" onclick="openCal('${b.id}')">
+            ${b.calReg? '🔔 通知は登録済み' : '🔔 通知をカレンダーに登録'}</button>
+        </div>
       </div>`;
     }).join('');
   }
@@ -435,6 +526,29 @@ function render(){
   }
 }
 function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- お知らせカード（アプリを開いたときの気づき） ----------
+   カレンダー通知を見逃した／登録していない場合の保険。
+   該当する仕込みが無いときは何も描画しない。 */
+function renderNotice(){
+  const box = document.getElementById('notice-box');
+  const msgs = [];
+  batches.filter(b=>b.status==='curing').forEach(b=>{
+    const total = b.d1+b.d2;
+    const day = daysElapsed(b.startDate);
+    if(day === b.d1 && b.d1 !== total){
+      msgs.push([b.name, '今日からスパイス工程です。スパイスをまぶしましょう']);
+    }else if(day === total){
+      msgs.push([b.name, '今日が完成予定日です。味見してみましょう']);
+    }else if(day > total){
+      msgs.push([b.name, '熟成期間が'+(day-total)+'日過ぎています。味見してみましょう']);
+    }
+  });
+  box.innerHTML = msgs.length===0 ? '' :
+    '<div class="notice"><h3>🔔 お知らせ</h3><ul>'
+    + msgs.map(m=>'<li><b>'+esc(m[0])+'</b><br>'+m[1]+'</li>').join('')
+    + '</ul></div>';
+}
 
 /* ---------- 重量記録 ---------- */
 function openWeight(id){
