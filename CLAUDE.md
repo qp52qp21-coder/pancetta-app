@@ -13,10 +13,12 @@
 ## ファイル構成
 
 ```
-index.html      アプリ本体（これ1つで全機能）
-manifest.json   ホーム画面追加用の設定
-icon-192.png    アイコン（192px）
-icon-512.png    アイコン（512px）
+index.html               アプリ本体（これ1つで全機能）
+manifest.json            ホーム画面追加用の設定
+icon-192.png             アイコン（192px / purpose:any）
+icon-512.png             アイコン（512px / purpose:any）
+icon-192-maskable.png    Android用アイコン（192px / purpose:maskable）
+icon-512-maskable.png    Android用アイコン（512px / purpose:maskable）
 ```
 
 ## 公開先
@@ -75,6 +77,10 @@ batch = {
   （端末ごとに絵柄と色が変わり、3色ルールから外れるため）。
   mood は `calm`（ヘッダー）/ `sleep`（仕込みが無いとき）/ `happy`（完成・アーカイブ）の3種。
   アプリアイコンもこの豚さんを描き出したもの
+- **Androidのホーム画面用に `purpose:"maskable"` のアイコンを必ず用意する**。
+  無いとChromeが「白い丸の中に縮小して置く」ため豚さんが小さくなる。
+  maskable版は背景を四隅まで敷き詰め、豚さんを**中央66.7%の円**に収める
+  （それより大きいと丸くくり抜かれたとき耳が切れる）
 
 ## 今後の改修候補
 
