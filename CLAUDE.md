@@ -40,7 +40,7 @@ batch = {
   sugarPct,    // 砂糖の割合(%)
   meatWeight,  // 仕込み時の肉重量(g)
   spice,       // スパイスメモ（文字列）
-  weights,     // [{date:"YYYY-MM-DD", grams:数値}, ...] 重量記録の履歴
+  logs,        // 記録の履歴（下記）
   status,      // 'curing' | 'done'
   rating,      // 1〜5（完成時の★評価）
   memo,        // 味のメモ
@@ -48,6 +48,18 @@ batch = {
   calReg       // カレンダーへ通知を登録したか（旧データには無い＝未登録扱い）
 }
 ```
+
+```js
+log = {
+  id,      // 文字列（uid()）。記録1件の識別子
+  date,    // "YYYY-MM-DD"
+  grams,   // 数値 or null（重量を書かなかった日）
+  memo,    // 文字列（空文字可）
+  photos   // 写真IDの配列（0〜4件）。画像の実体は IndexedDB 側にある
+}
+```
+
+`logs` は日付の昇順。旧 `weights` は起動時に自動で `logs` へ読み替えられる（`migrate()`）。
 
 全 batch を配列にして JSON 文字列で localStorage に保存している。
 

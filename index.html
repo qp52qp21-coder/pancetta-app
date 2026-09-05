@@ -303,7 +303,7 @@
    パンチェッタ熟成手帳
    データ構造：
    batch = { id, name, startDate(YYYY-MM-DD), d1, d2, saltPct, sugarPct,
-             meatWeight, spice, weights:[{date,grams}],
+             meatWeight, spice, logs:[{id,date,grams,memo,photos}],
              status:'curing'|'done', rating, memo, doneDate }
    ============================================================ */
 const KEY = 'pancetta-batches';
@@ -317,7 +317,25 @@ function load(){
     const r = localStorage.getItem(KEY);
     if(r) batches = JSON.parse(r);
   }catch(e){ /* 初回はデータが無いだけなので無視 */ }
+  if(migrate()) save();
   render();
+}
+
+/* ---------- 旧データの読み替え ----------
+   weights:[{date,grams}] を logs:[{id,date,grams,memo,photos}] にする。
+   一度変換すれば logs が存在するので、次回以降は何もしない。 */
+function migrate(){
+  let changed = false;
+  batches.forEach(b=>{
+    if(!Array.isArray(b.logs)){
+      b.logs = (b.weights||[]).map(w=>({
+        id: uid(), date: w.date, grams: w.grams, memo:'', photos:[]
+      }));
+      changed = true;
+    }
+    if('weights' in b){ delete b.weights; changed = true; }
+  });
+  return changed;
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(batches)); }
@@ -353,6 +371,18 @@ function pig(size, mood){
     <ellipse cx="35.6" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
     ${extra}
   </svg>`;
+}
+
+/* ---------- 識別子 ----------
+   Date.now() だけだと、同じミリ秒に複数の写真を保存したときIDがぶつかる。
+   乱数4桁を足して避ける。 */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+/* 記録を日付の昇順で差し込む。同じ日付のものは追加した順に並ぶ
+   （Array.sort は同値の順序を保つため） */
+function addLog(b, log){
+  b.logs.push(log);
+  b.logs.sort((x,y)=> x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
 }
 
 /* ---------- 日付ユーティリティ ---------- */
@@ -448,7 +478,7 @@ function addBatch(){
     sugarPct: parseFloat(document.getElementById('in-sugar').value)||0,
     meatWeight: w,
     spice: document.getElementById('in-spice').value.trim(),
-    weights: w>0 ? [{date, grams:w}] : [],
+    logs: w>0 ? [{id:uid(), date, grams:w, memo:'', photos:[]}] : [],
     status:'curing', rating:0, memo:'', doneDate:null,
     calReg:false                       // カレンダーへ通知を登録したか
   };
@@ -492,8 +522,9 @@ function render(){
       const C = 2*Math.PI*40;
       /* 重量減少率 */
       let lossHtml='–';
-      if(b.weights.length>=1 && b.weights[0].grams>0){
-        const first=b.weights[0].grams, last=b.weights[b.weights.length-1].grams;
+      const gl = b.logs.filter(l=>l.grams>0);
+      if(gl.length>=1){
+        const first=gl[0].grams, last=gl[gl.length-1].grams;
         lossHtml = first===last ? '0%' : '-'+(((first-last)/first)*100).toFixed(1)+'%';
       }
       const gouhai = b.saltPct? '塩'+b.saltPct+'% / 砂糖'+b.sugarPct+'%' : '配合未登録';
@@ -547,8 +578,9 @@ function render(){
   }else{
     arch.innerHTML = done.map(b=>{
       let loss='';
-      if(b.weights.length>=2){
-        const f=b.weights[0].grams,l=b.weights[b.weights.length-1].grams;
+      const gl = b.logs.filter(l=>l.grams>0);
+      if(gl.length>=2){
+        const f=gl[0].grams, l=gl[gl.length-1].grams;
         loss='・重量 -'+(((f-l)/f)*100).toFixed(1)+'%';
       }
       return `
@@ -595,8 +627,9 @@ function openWeight(id){
   document.getElementById('mw-name').textContent = b.name;
   document.getElementById('mw-grams').value='';
   const log = document.getElementById('mw-log');
-  const first = b.weights.length? b.weights[0].grams : 0;
-  log.innerHTML = b.weights.map(w=>{
+  const gl = b.logs.filter(l=>l.grams>0);
+  const first = gl.length ? gl[0].grams : 0;
+  log.innerHTML = gl.map(w=>{
     const loss = first>0 && w.grams!==first ? '<span class="loss">-'+(((first-w.grams)/first)*100).toFixed(1)+'%</span>' : '<span>基準</span>';
     return '<li><span>'+w.date.replaceAll('-','/')+'</span><span>'+w.grams+'g</span>'+loss+'</li>';
   }).join('') || '<li><span>記録なし</span></li>';
@@ -606,7 +639,7 @@ function saveWeight(){
   const g = parseFloat(document.getElementById('mw-grams').value);
   if(!(g>0)){ toast('重量を入力してください'); return; }
   const b = batches.find(x=>x.id===modalTarget);
-  b.weights.push({date:todayStr(), grams:g});
+  addLog(b, {id:uid(), date:todayStr(), grams:g, memo:'', photos:[]});
   save(); render();
   closeModal('modal-weight');
   toast('重量を記録しました');
