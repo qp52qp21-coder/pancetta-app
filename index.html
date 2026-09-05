@@ -407,6 +407,7 @@ function photoDel(ids){
       ids.forEach(id=>st.delete(id));
       tx.oncomplete = ()=>res();
       tx.onerror    = ()=>res();   /* 消し損ねても操作は続行させる */
+      tx.onabort    = ()=>res();   /* 中断もここで受ける。放置すると呼び出し元が待ち続ける */
     });
   });
 }
@@ -422,6 +423,7 @@ function photoDelBatch(batchId){
       req.onsuccess = ()=>{ const c = req.result; if(c){ c.delete(); c.continue(); } };
       tx.oncomplete = ()=>res();
       tx.onerror    = ()=>res();
+      tx.onabort    = ()=>res();   /* 中断もここで受ける。放置すると呼び出し元が待ち続ける */
     });
   });
 }
