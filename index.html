@@ -342,6 +342,113 @@ function save(){
   catch(e){ toast('保存に失敗しました'); }
 }
 
+/* ---------- 写真の保存箱（IndexedDB） ----------
+   画像そのものは localStorage に入れない。localStorage の上限は約5MBで、
+   あふれると仕込みデータの保存まで巻き添えで失敗するため、別の箱に分ける。
+   IndexedDB は Blob をそのまま置けるので、文字列化による1.3倍の膨張も無い。 */
+const PDB_NAME = 'pancetta-photos';
+const PDB_STORE = 'photos';
+let pdb = null;        // 開いた接続を使い回す
+let photoOK = false;   // 写真機能を出してよいか（起動時に判定）
+
+function photoOpen(){
+  return new Promise(resolve=>{
+    if(pdb) return resolve(pdb);
+    if(!window.indexedDB) return resolve(null);
+    let req;
+    try{ req = indexedDB.open(PDB_NAME, 1); }
+    catch(e){ return resolve(null); }
+    req.onupgradeneeded = ()=>{
+      const db = req.result;
+      if(!db.objectStoreNames.contains(PDB_STORE)){
+        const st = db.createObjectStore(PDB_STORE, {keyPath:'id'});
+        st.createIndex('batchId', 'batchId', {unique:false});
+      }
+    };
+    req.onsuccess = ()=>{ pdb = req.result; resolve(pdb); };
+    req.onerror   = ()=> resolve(null);
+    req.onblocked = ()=> resolve(null);
+  });
+}
+
+function photoReady(){ return photoOpen().then(db=>!!db); }
+
+function photoPut(rec){
+  return photoOpen().then(db=>{
+    if(!db) return Promise.reject(new Error('写真の保存箱を開けません'));
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(PDB_STORE,'readwrite');
+      tx.objectStore(PDB_STORE).put(rec);
+      tx.oncomplete = ()=>res(rec.id);
+      tx.onerror    = ()=>rej(tx.error || new Error('保存に失敗'));
+      tx.onabort    = ()=>rej(tx.error || new Error('保存が中断'));
+    });
+  });
+}
+
+function photoGet(id){
+  return photoOpen().then(db=>{
+    if(!db) return null;
+    return new Promise(res=>{
+      const req = db.transaction(PDB_STORE,'readonly').objectStore(PDB_STORE).get(id);
+      req.onsuccess = ()=>res(req.result || null);
+      req.onerror   = ()=>res(null);
+    });
+  });
+}
+
+function photoDel(ids){
+  if(!ids || !ids.length) return Promise.resolve();
+  return photoOpen().then(db=>{
+    if(!db) return;
+    return new Promise(res=>{
+      const tx = db.transaction(PDB_STORE,'readwrite');
+      const st = tx.objectStore(PDB_STORE);
+      ids.forEach(id=>st.delete(id));
+      tx.oncomplete = ()=>res();
+      tx.onerror    = ()=>res();   /* 消し損ねても操作は続行させる */
+    });
+  });
+}
+
+/* 仕込みを削除したとき、その仕込みの写真をまとめて消す。
+   消し残すと二度と参照されない画像が容量を食い続けるため。 */
+function photoDelBatch(batchId){
+  return photoOpen().then(db=>{
+    if(!db) return;
+    return new Promise(res=>{
+      const tx  = db.transaction(PDB_STORE,'readwrite');
+      const req = tx.objectStore(PDB_STORE).index('batchId').openCursor(IDBKeyRange.only(batchId));
+      req.onsuccess = ()=>{ const c = req.result; if(c){ c.delete(); c.continue(); } };
+      tx.oncomplete = ()=>res();
+      tx.onerror    = ()=>res();
+    });
+  });
+}
+
+/* 端末の写真は1枚4MB前後ある。そのままでは保存箱がすぐ膨らむので、
+   長辺1000px・JPEG品質75%に縮めてから保存する（おおよそ100KB前後になる）。
+   元が1000px以下なら引き伸ばさない。 */
+function shrink(file){
+  return new Promise((res,rej)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      const MAX = 1000;
+      const scale = Math.min(1, MAX/Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width  * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      cv.toBlob(b=> b ? res(b) : rej(new Error('画像を変換できません')), 'image/jpeg', 0.75);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); rej(new Error('画像を読めません')); };
+    img.src = url;
+  });
+}
+
 /* ---------- 豚さん（SVGイラスト） ----------
    絵文字だと端末ごとに絵柄と色が変わるため、3色ルールに合わせて自前で描く。
    mood: 'calm'（ふつう） / 'sleep'（おやすみ） / 'happy'（うれしい） */
@@ -713,6 +820,10 @@ document.getElementById('logo').innerHTML   = pig(32,'calm');
 document.getElementById('md-pig').innerHTML = pig(64,'happy');
 document.getElementById('in-date').value = todayStr();
 load();
+
+/* 写真機能が使えるかを最初に判定する。使えない端末では写真欄を出さない
+   （重量とメモは今までどおり動く） */
+photoReady().then(ok=>{ photoOK = ok; render(); });
 </script>
 </body>
 </html>
