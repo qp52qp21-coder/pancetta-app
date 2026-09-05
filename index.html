@@ -472,7 +472,7 @@ function addBatch(){
   const d1 = parseInt(document.getElementById('in-d1').value)||7;
   const d2 = parseInt(document.getElementById('in-d2').value)||7;
   const b = {
-    id: Date.now().toString(36),
+    id: uid(),
     name, startDate: date, d1, d2,
     saltPct : parseFloat(document.getElementById('in-salt').value)||0,
     sugarPct: parseFloat(document.getElementById('in-sugar').value)||0,
