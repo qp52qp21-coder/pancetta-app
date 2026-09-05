@@ -160,10 +160,16 @@
     color:var(--brown-soft);letter-spacing:.06em;}
   .cal-link .cal-label{display:block;font-size:15px;font-weight:700;color:var(--rose);}
 
-  .weight-log{font-size:13px;margin-top:10px;}
-  .weight-log li{display:flex;justify-content:space-between;padding:5px 2px;
+  .log-list{font-size:13px;margin-top:14px;border-top:1px solid var(--cream-deep);}
+  .log-list li{display:flex;gap:8px;align-items:flex-start;padding:8px 2px;
     border-bottom:1px dashed var(--cream-deep);list-style:none;}
-  .weight-log .loss{color:var(--rose);font-weight:700;}
+  .log-list .d{color:var(--brown-soft);flex:0 0 42px;font-size:12px;padding-top:1px;}
+  .log-list .t{flex:1;min-width:0;line-height:1.5;word-break:break-word;}
+  .log-list .g{font-weight:700;}
+  .log-list .loss{color:var(--rose);font-weight:700;margin-left:6px;}
+  .log-list .memo{white-space:pre-wrap;margin-top:2px;}
+  .log-list .x{border:none;background:none;color:var(--brown-soft);font-size:15px;
+    cursor:pointer;padding:2px 4px;flex:0 0 auto;line-height:1;}
 
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
     background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
@@ -241,15 +247,21 @@
 </div>
 
 <!-- 重量記録モーダル -->
-<div class="modal-bg" id="modal-weight">
+<div class="modal-bg" id="modal-log">
   <div class="modal">
-    <button class="close-x" onclick="closeModal('modal-weight')">✕</button>
-    <h3>重量を記録</h3>
-    <p style="font-size:12px;color:var(--brown-soft);" id="mw-name"></p>
-    <label>今日の重量（g）</label>
-    <input type="number" id="mw-grams" inputmode="decimal" placeholder="例：420">
-    <div class="btn-row"><button class="btn primary" onclick="saveWeight()">記録する</button></div>
-    <ul class="weight-log" id="mw-log"></ul>
+    <button class="close-x" onclick="closeModal('modal-log')">✕</button>
+    <h3>今日の記録</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="ml-name"></p>
+    <div class="row2">
+      <div><label>日付</label><input type="date" id="ml-date"></div>
+      <div><label>重量（g）※任意</label>
+        <input type="number" id="ml-grams" inputmode="decimal" placeholder="例：420"></div>
+    </div>
+    <label>メモ ※任意</label>
+    <textarea id="ml-memo" rows="2" placeholder="例：ラップでくるんで冷蔵庫で熟成"></textarea>
+    <div id="ml-photo-area"></div>
+    <div class="btn-row"><button class="btn primary" onclick="saveLog()">記録する</button></div>
+    <ul class="log-list" id="ml-list"></ul>
   </div>
 </div>
 
@@ -272,9 +284,9 @@
 <div class="modal-bg" id="modal-del">
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-del')">✕</button>
-    <h3>この仕込みを削除しますか？</h3>
+    <h3 id="dl-title">この仕込みを削除しますか？</h3>
     <p style="font-size:12px;color:var(--brown-soft);margin-top:4px;" id="dl-name"></p>
-    <p style="font-size:12px;color:var(--brown-soft);">削除すると記録は元に戻せません。</p>
+    <p style="font-size:12px;color:var(--brown-soft);" id="dl-note">削除すると記録は元に戻せません。</p>
     <div class="btn-row">
       <button class="btn" onclick="closeModal('modal-del')">やめる</button>
       <button class="btn primary" onclick="confirmDel()">削除する</button>
@@ -666,7 +678,7 @@ function render(){
           <div class="meta-box"><div class="v">${fmt(doneDay)}</div><div class="l">完成予定</div></div>
         </div>
         <div class="btn-row">
-          <button class="btn" onclick="openWeight('${b.id}')">重量を記録</button>
+          <button class="btn" onclick="openLog('${b.id}')">記録する</button>
           <button class="btn primary" onclick="openDone('${b.id}')">完成にする</button>
           <button class="btn quiet" onclick="delBatch('${b.id}')">削除</button>
         </div>
@@ -729,29 +741,84 @@ function renderNotice(){
     + '</ul></div>';
 }
 
-/* ---------- 重量記録 ---------- */
-function openWeight(id){
+/* ---------- 記録（重量・メモ・写真） ----------
+   重量とメモを別々のボタンにすると、書く内容によって押し分ける判断が毎回発生する。
+   「記録する」1つに集め、書きたい欄だけ埋めてもらう。 */
+let draftPhotos = [];    // 保存前に追加された写真ID（Task 4 で使う）
+
+function openLog(id){
   modalTarget = id;
   const b = batches.find(x=>x.id===id);
-  document.getElementById('mw-name').textContent = b.name;
-  document.getElementById('mw-grams').value='';
-  const log = document.getElementById('mw-log');
-  const gl = b.logs.filter(l=>l.grams>0);
-  const first = gl.length ? gl[0].grams : 0;
-  log.innerHTML = gl.map(w=>{
-    const loss = first>0 && w.grams!==first ? '<span class="loss">-'+(((first-w.grams)/first)*100).toFixed(1)+'%</span>' : '<span>基準</span>';
-    return '<li><span>'+w.date.replaceAll('-','/')+'</span><span>'+w.grams+'g</span>'+loss+'</li>';
-  }).join('') || '<li><span>記録なし</span></li>';
-  document.getElementById('modal-weight').classList.add('show');
+  document.getElementById('ml-name').textContent =
+    b.name + ' ・ ' + daysElapsed(b.startDate) + '日目';
+  document.getElementById('ml-date').value  = todayStr();
+  document.getElementById('ml-grams').value = '';
+  document.getElementById('ml-memo').value  = '';
+  draftPhotos = [];
+  renderLogList();
+  document.getElementById('modal-log').classList.add('show');
 }
-function saveWeight(){
-  const g = parseFloat(document.getElementById('mw-grams').value);
-  if(!(g>0)){ toast('重量を入力してください'); return; }
+
+function renderLogList(){
   const b = batches.find(x=>x.id===modalTarget);
-  addLog(b, {id:uid(), date:todayStr(), grams:g, memo:'', photos:[]});
+  document.getElementById('ml-list').innerHTML = logRows(b, true);
+}
+
+/* 記録一覧の中身。新しいものが上。
+   減少率の基準は「重量を書いた記録のうち最も古いもの」。 */
+function logRows(b, withDel){
+  if(!b.logs.length) return '<li><span class="t">まだ記録がありません</span></li>';
+  const gl = b.logs.filter(l=>l.grams>0);
+  const base = gl.length ? gl[0].grams : 0;
+  return b.logs.slice().reverse().map(l=>{
+    let g = '';
+    if(l.grams>0){
+      const loss = (base>0 && l.grams!==base)
+        ? '<span class="loss">-'+(((base-l.grams)/base)*100).toFixed(1)+'%</span>'
+        : '<span class="loss">基準</span>';
+      g = '<span class="g">'+l.grams+'g</span>'+loss;
+    }
+    const m  = l.memo ? '<div class="memo">'+esc(l.memo)+'</div>' : '';
+    const x  = withDel ? '<button class="x" onclick="askDelLog(\''+l.id+'\')">✕</button>' : '';
+    return '<li><span class="d">'+fmt(parseD(l.date))+'</span>'
+         + '<span class="t">'+g+m+'</span>'+x+'</li>';
+  }).join('');
+}
+
+function saveLog(){
+  const b    = batches.find(x=>x.id===modalTarget);
+  const date = document.getElementById('ml-date').value;
+  const gRaw = document.getElementById('ml-grams').value.trim();
+  const memo = document.getElementById('ml-memo').value.trim();
+  if(!date){ toast('日付を入力してください'); return; }
+  let grams = null;
+  if(gRaw !== ''){
+    const g = parseFloat(gRaw);
+    if(!(g>0)){ toast('重量は正の数で入力してください'); return; }
+    grams = g;
+  }
+  if(grams===null && !memo && draftPhotos.length===0){
+    toast('重量・メモ・写真のどれかを入力してください'); return;
+  }
+  addLog(b, {id:uid(), date, grams, memo, photos:draftPhotos.slice()});
+  draftPhotos = [];
   save(); render();
-  closeModal('modal-weight');
-  toast('重量を記録しました');
+  closeModal('modal-log');
+  toast('記録しました');
+}
+
+/* 記録1件を消す。写真も道連れにする（残しても参照する先が無いため） */
+function askDelLog(logId){
+  const b = batches.find(x=>x.id===modalTarget);
+  const l = b.logs.find(x=>x.id===logId);
+  if(!l) return;
+  askDel('この記録を削除しますか？', fmt(parseD(l.date)) + ' の記録',
+         '写真も一緒に削除されます。元に戻せません。', ()=>{
+    photoDel(l.photos);
+    b.logs = b.logs.filter(x=>x.id!==logId);
+    save(); render(); renderLogList();
+    toast('記録を削除しました');
+  });
 }
 
 /* ---------- 完成処理 ---------- */
@@ -787,19 +854,30 @@ function saveDone(){
 }
 
 /* ---------- 共通 ---------- */
-let delTarget = null;
-function delBatch(id){
-  delTarget = id;
-  const b = batches.find(x=>x.id===id);
-  document.getElementById('dl-name').textContent = b ? b.name : '';
+/* 削除確認モーダル。仕込みの削除と記録の削除で使い回す */
+let delAction = null;
+function askDel(title, name, note, fn){
+  document.getElementById('dl-title').textContent = title;
+  document.getElementById('dl-name').textContent  = name;
+  document.getElementById('dl-note').textContent  = note;
+  delAction = fn;
   document.getElementById('modal-del').classList.add('show');
 }
 function confirmDel(){
-  batches = batches.filter(b=>b.id!==delTarget);
-  delTarget = null;
-  save(); render();
+  const fn = delAction;
+  delAction = null;
   closeModal('modal-del');
-  toast('削除しました');
+  if(fn) fn();
+}
+function delBatch(id){
+  const b = batches.find(x=>x.id===id);
+  if(!b) return;
+  askDel('この仕込みを削除しますか？', b.name, '写真を含め、記録は元に戻せません。', ()=>{
+    photoDelBatch(id);
+    batches = batches.filter(x=>x.id!==id);
+    save(); render();
+    toast('削除しました');
+  });
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function showTab(t){
