@@ -1062,8 +1062,10 @@ function saveEdit(){
   const b = batches.find(x=>x.id===modalTarget);
   const name  = document.getElementById('me-title').value.trim() || 'パンチェッタ';
   const date  = document.getElementById('me-date').value;
-  const d1    = parseInt(document.getElementById('me-d1').value, 10);
-  const d2    = parseInt(document.getElementById('me-d2').value, 10);
+  const d1Raw = document.getElementById('me-d1').value.trim();
+  const d2Raw = document.getElementById('me-d2').value.trim();
+  const d1    = parseInt(d1Raw, 10);
+  const d2    = parseInt(d2Raw, 10);
   const spice = document.getElementById('me-spice').value.trim();
   const salt  = parseFloat(document.getElementById('me-salt').value);
   const sugar = parseFloat(document.getElementById('me-sugar').value);
@@ -1071,7 +1073,12 @@ function saveEdit(){
   const w     = wRaw==='' ? 0 : parseFloat(wRaw);
 
   if(!date){ toast('仕込み開始日を入力してください'); return; }
-  if(!(d1>=1) || !(d2>=1)){ toast('日数は1日以上で入力してください'); return; }
+  /* parseInt は "7.9" を黙って 7 にする。切り捨てた値で保存すると、
+     入力した本人には日数が勝手に変わった理由が分からないので、弾いて知らせる */
+  const intDays = s=>/^\d+$/.test(s);
+  if(!intDays(d1Raw) || !intDays(d2Raw) || !(d1>=1) || !(d2>=1)){
+    toast('日数は1日以上の整数で入力してください'); return;
+  }
   if(!(salt>=0) || !(sugar>=0) || !(w>=0)){ toast('数値は0以上で入力してください'); return; }
 
   /* 日程が動いたか。カレンダーに登録済みの予定がズレるので後で知らせる */
