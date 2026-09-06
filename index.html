@@ -171,6 +171,19 @@
   .log-list .x{border:none;background:none;color:var(--brown-soft);font-size:15px;
     cursor:pointer;padding:2px 4px;flex:0 0 auto;line-height:1;}
 
+  /* 写真 */
+  .thumbs{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+  .thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;
+    border:1px solid var(--cream-deep);background:var(--rose-soft);cursor:pointer;}
+  .log-list .thumb{width:44px;height:44px;}
+  .thumb-add{width:52px;height:52px;border-radius:8px;border:1.5px dashed var(--cream-deep);
+    background:#fff;color:var(--brown-soft);font:inherit;font-size:11px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.3;}
+  .photo-view{align-items:center;background:rgba(59,42,34,.88);}
+  .photo-stage{width:100%;max-width:480px;padding:16px;}
+  .photo-stage img{width:100%;border-radius:12px;background:var(--cream);display:block;}
+  .photo-stage .btn{background:var(--cream);}
+
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
     background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
     border-radius:999px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:90;
@@ -305,6 +318,17 @@
     <p style="font-size:11.5px;color:var(--brown-soft);margin-top:12px;line-height:1.55;">
       ※通知が鳴る時刻はGoogleカレンダーの設定に従います（既定では予定の30分前）。ちょうど5:00に鳴らすには、カレンダー側で通知を「0分前」に変更してください。</p>
     <div class="btn-row"><button class="btn" onclick="closeModal('modal-cal')">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 写真の全画面表示 -->
+<div class="modal-bg photo-view" id="modal-photo">
+  <div class="photo-stage">
+    <img id="pv-img" alt="記録した写真">
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-photo')">閉じる</button>
+      <button class="btn quiet" onclick="delPhoto()">この写真を削除</button>
+    </div>
   </div>
 </div>
 
@@ -615,6 +639,7 @@ function addBatch(){
 
 /* ---------- 描画 ---------- */
 function render(){
+  freeUrls();
   renderNotice();
   /* --- 熟成中 --- */
   const list = document.getElementById('batch-list');
@@ -755,6 +780,8 @@ function openLog(id){
   document.getElementById('ml-grams').value = '';
   document.getElementById('ml-memo').value  = '';
   draftPhotos = [];
+  freeUrls();
+  renderPhotoArea();
   renderLogList();
   document.getElementById('modal-log').classList.add('show');
 }
@@ -762,6 +789,7 @@ function openLog(id){
 function renderLogList(){
   const b = batches.find(x=>x.id===modalTarget);
   document.getElementById('ml-list').innerHTML = logRows(b, true);
+  hydratePhotos();
 }
 
 /* 記録一覧の中身。新しいものが上。
@@ -782,9 +810,10 @@ function logRows(b, withDel){
       g = '<span class="g">'+l.grams+'g</span>'+loss;
     }
     const m  = l.memo ? '<div class="memo">'+esc(l.memo)+'</div>' : '';
+    const ph = photoThumbs(l);
     const x  = withDel ? '<button class="x" onclick="askDelLog(\''+l.id+'\')">✕</button>' : '';
     return '<li><span class="d">'+fmt(parseD(l.date))+'</span>'
-         + '<span class="t">'+g+m+'</span>'+x+'</li>';
+         + '<span class="t">'+g+m+ph+'</span>'+x+'</li>';
   }).join('');
 }
 
@@ -808,6 +837,106 @@ function saveLog(){
   save(); render();
   closeModal('modal-log');
   toast('記録しました');
+}
+
+/* ---------- 写真 ----------
+   IndexedDB から取り出した Blob は、表示のたびに一時URLを作る必要がある。
+   作りっぱなしだとメモリに残るので、描き直す前に必ず破棄する。 */
+let objUrls = [];
+let viewingPhoto = null;   // 全画面表示中の写真ID
+
+function freeUrls(){ objUrls.forEach(u=>URL.revokeObjectURL(u)); objUrls = []; }
+
+/* 一覧・履歴に置くサムネイルの器。画像は hydratePhotos() が後から流し込む */
+function photoThumbs(l){
+  if(!l.photos || !l.photos.length) return '';
+  return '<div class="thumbs">'
+    + l.photos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="記録した写真" '
+        + 'onclick="viewPhoto(\''+p+'\')">').join('')
+    + '</div>';
+}
+
+/* data-photo を持つ img に、IndexedDB の画像を流し込む。
+   innerHTML を書き換えた後に必ず呼ぶ */
+function hydratePhotos(){
+  document.querySelectorAll('img[data-photo]:not([src])').forEach(el=>{
+    photoGet(el.dataset.photo).then(rec=>{
+      if(!rec) return;
+      const u = URL.createObjectURL(rec.blob);
+      objUrls.push(u);
+      el.src = u;
+    });
+  });
+}
+
+/* 記録モーダルの写真欄。写真機能が使えない端末では何も出さない */
+function renderPhotoArea(){
+  const box = document.getElementById('ml-photo-area');
+  if(!photoOK){ box.innerHTML = ''; return; }
+  box.innerHTML =
+    '<label>写真 ※任意</label>'
+    + '<div class="thumbs" id="ml-thumbs">'
+    +   draftPhotos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="追加した写真" '
+          + 'onclick="viewPhoto(\''+p+'\')">').join('')
+    +   (draftPhotos.length < 4
+          ? '<button class="thumb-add" onclick="document.getElementById(\'ml-file\').click()">＋<br>追加</button>'
+          : '')
+    + '</div>'
+    + '<input type="file" id="ml-file" accept="image/*" multiple hidden onchange="pickPhotos(this)">';
+  hydratePhotos();
+}
+
+function pickPhotos(input){
+  const files = Array.from(input.files || []);
+  input.value = '';                       /* 同じ写真を続けて選べるようにする */
+  if(!files.length) return;
+  const room = 4 - draftPhotos.length;
+  if(files.length > room) toast('写真は1件につき4枚までです');
+  const use = files.slice(0, room);
+  const batchId = modalTarget;
+  Promise.all(use.map(f=>
+    shrink(f).then(blob=>{
+      const id = uid();
+      return photoPut({id, batchId, blob, created:Date.now()}).then(()=>id);
+    })
+  )).then(ids=>{
+    draftPhotos = draftPhotos.concat(ids);
+    renderPhotoArea();
+  }).catch(()=>{
+    toast('写真を保存できませんでした');
+    renderPhotoArea();
+  });
+}
+
+function viewPhoto(photoId){
+  viewingPhoto = photoId;
+  const img = document.getElementById('pv-img');
+  img.removeAttribute('src');
+  photoGet(photoId).then(rec=>{
+    if(!rec){ toast('写真が見つかりません'); return; }
+    const u = URL.createObjectURL(rec.blob);
+    objUrls.push(u);
+    img.src = u;
+  });
+  document.getElementById('modal-photo').classList.add('show');
+}
+
+/* 全画面表示からの1枚削除。誤タップしにくい位置なので確認は挟まない */
+function delPhoto(){
+  const id = viewingPhoto;
+  if(!id) return;
+  photoDel([id]);
+  batches.forEach(b=> b.logs.forEach(l=>{
+    if(l.photos) l.photos = l.photos.filter(p=>p!==id);
+  }));
+  draftPhotos = draftPhotos.filter(p=>p!==id);
+  viewingPhoto = null;
+  save(); render();
+  closeModal('modal-photo');
+  if(document.getElementById('modal-log').classList.contains('show')){
+    renderLogList(); renderPhotoArea();
+  }
+  toast('写真を削除しました');
 }
 
 /* 記録1件を消す。写真も道連れにする（残しても参照する先が無いため） */
