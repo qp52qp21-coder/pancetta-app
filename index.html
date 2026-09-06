@@ -262,7 +262,7 @@
 <!-- 記録モーダル（重量・メモ・写真） -->
 <div class="modal-bg" id="modal-log">
   <div class="modal">
-    <button class="close-x" onclick="closeModal('modal-log')">✕</button>
+    <button class="close-x" onclick="closeLog()">✕</button>
     <h3>今日の記録</h3>
     <p style="font-size:12px;color:var(--brown-soft);" id="ml-name"></p>
     <div class="row2">
@@ -869,6 +869,13 @@ function hydratePhotos(){
   });
 }
 
+/* ✕ で閉じたときは、追加済みの写真が行き場を失う。
+   保存されない写真を残すと、二度と参照されないまま容量を食い続ける */
+function closeLog(){
+  if(draftPhotos.length){ photoDel(draftPhotos); draftPhotos = []; }
+  closeModal('modal-log');
+}
+
 /* 記録モーダルの写真欄。写真機能が使えない端末では何も出さない */
 function renderPhotoArea(){
   const box = document.getElementById('ml-photo-area');
@@ -891,19 +898,32 @@ function pickPhotos(input){
   input.value = '';                       /* 同じ写真を続けて選べるようにする */
   if(!files.length) return;
   const room = 4 - draftPhotos.length;
+  if(room <= 0){ toast('写真は1件につき4枚までです'); return; }
   if(files.length > room) toast('写真は1件につき4枚までです');
   const use = files.slice(0, room);
   const batchId = modalTarget;
-  Promise.all(use.map(f=>
+  /* 1枚が失敗しても、成功した分は取りこぼさずに拾う。
+     Promise.all だと最初の失敗で成功分のIDが手元に来ず、
+     IndexedDB に書かれたまま参照されない写真が残ってしまう */
+  Promise.allSettled(use.map(f=>
     shrink(f).then(blob=>{
       const id = uid();
       return photoPut({id, batchId, blob, created:Date.now()}).then(()=>id);
     })
-  )).then(ids=>{
-    draftPhotos = draftPhotos.concat(ids);
-    renderPhotoArea();
-  }).catch(()=>{
-    toast('写真を保存できませんでした');
+  )).then(results=>{
+    const ids    = results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+    const failed = results.length - ids.length;
+    /* 縮小している間に別の仕込みの記録モーダルへ移っていたら、
+       その写真は行き場が無い。持ち越さずに消す */
+    if(modalTarget !== batchId){ photoDel(ids); return; }
+    /* 待っている間に別の選択が確定していることがあるので、残り枠は今の数で数え直す */
+    const left = Math.max(0, 4 - draftPhotos.length);
+    const keep = ids.slice(0, left);
+    const over = ids.slice(left);
+    if(over.length) photoDel(over);
+    draftPhotos = draftPhotos.concat(keep);
+    if(failed)          toast('写真を保存できませんでした');
+    else if(over.length) toast('写真は1件につき4枚までです');
     renderPhotoArea();
   });
 }
@@ -948,7 +968,7 @@ function askDelLog(logId){
          '写真も一緒に削除されます。元に戻せません。', ()=>{
     photoDel(l.photos);
     b.logs = b.logs.filter(x=>x.id!==logId);
-    save(); render(); renderLogList();
+    save(); render(); renderLogList(); renderPhotoArea();
     toast('記録を削除しました');
   });
 }
