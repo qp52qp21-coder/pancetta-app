@@ -246,7 +246,7 @@
   </nav>
 </div>
 
-<!-- 重量記録モーダル -->
+<!-- 記録モーダル（重量・メモ・写真） -->
 <div class="modal-bg" id="modal-log">
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-log')">✕</button>
@@ -773,8 +773,11 @@ function logRows(b, withDel){
   return b.logs.slice().reverse().map(l=>{
     let g = '';
     if(l.grams>0){
+      /* 記録は日付順に並ぶが入力順とは限らない（後から前の日を書き足せる）ので、
+         基準より重い記録もあり得る。符号は計算結果から決める */
+      const diff = base>0 ? ((base-l.grams)/base)*100 : 0;
       const loss = (base>0 && l.grams!==base)
-        ? '<span class="loss">-'+(((base-l.grams)/base)*100).toFixed(1)+'%</span>'
+        ? '<span class="loss">'+(diff>0?'-':'+')+Math.abs(diff).toFixed(1)+'%</span>'
         : '<span class="loss">基準</span>';
       g = '<span class="g">'+l.grams+'g</span>'+loss;
     }
