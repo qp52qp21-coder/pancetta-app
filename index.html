@@ -170,6 +170,8 @@
   .log-list .memo{white-space:pre-wrap;margin-top:2px;}
   .log-list .x{border:none;background:none;color:var(--brown-soft);font-size:15px;
     cursor:pointer;padding:2px 4px;flex:0 0 auto;line-height:1;}
+  .edit-note{font-size:11.5px;color:var(--rose);background:var(--rose-soft);
+    border-radius:8px;padding:7px 10px;margin-top:6px;line-height:1.5;}
 
   /* 写真 */
   .thumbs{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
@@ -259,6 +261,36 @@
   </nav>
 </div>
 
+<!-- 編集モーダル -->
+<div class="modal-bg" id="modal-edit">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modal-edit')">✕</button>
+    <h3>仕込みを編集</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="me-name"></p>
+    <label>仕込み名</label>
+    <input type="text" id="me-title">
+    <label>仕込み開始日</label>
+    <input type="date" id="me-date">
+    <div class="row2">
+      <div><label>塩漬け（日）</label><input type="number" id="me-d1" inputmode="numeric"></div>
+      <div><label>スパイス熟成（日）</label><input type="number" id="me-d2" inputmode="numeric"></div>
+    </div>
+    <label>スパイスメモ</label>
+    <input type="text" id="me-spice" placeholder="例：黒コショウ＋チリパウダー">
+    <div class="row2">
+      <div><label>塩（%）</label><input type="number" id="me-salt" inputmode="decimal" step="0.1"></div>
+      <div><label>砂糖（%）</label><input type="number" id="me-sugar" inputmode="decimal" step="0.1"></div>
+    </div>
+    <label>仕込み重量（g）</label>
+    <input type="number" id="me-weight" inputmode="decimal" oninput="editBaseNote()">
+    <p class="edit-note" id="me-note" hidden></p>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-edit')">やめる</button>
+      <button class="btn primary" onclick="saveEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
 <!-- 記録モーダル（重量・メモ・写真） -->
 <div class="modal-bg" id="modal-log">
   <div class="modal">
@@ -315,6 +347,8 @@
     <p style="font-size:12px;color:var(--brown-soft);" id="mc-name"></p>
     <p style="font-size:13px;margin-top:12px;">下のボタンを押すとGoogleカレンダーが開きます。内容は入力済みなので「保存」を押すだけです。</p>
     <div id="mc-links"></div>
+    <p style="font-size:11.5px;color:var(--rose);margin-top:12px;line-height:1.55;">
+      ※前に登録した予定は、カレンダーアプリで手で削除してください。アプリから消すことはできません。</p>
     <p style="font-size:11.5px;color:var(--brown-soft);margin-top:12px;line-height:1.55;">
       ※通知が鳴る時刻はGoogleカレンダーの設定に従います（既定では予定の30分前）。ちょうど5:00に鳴らすには、カレンダー側で通知を「0分前」に変更してください。</p>
     <div class="btn-row"><button class="btn" onclick="closeModal('modal-cal')">閉じる</button></div>
@@ -705,6 +739,9 @@ function render(){
         <div class="btn-row">
           <button class="btn" onclick="openLog('${b.id}')">記録する</button>
           <button class="btn primary" onclick="openDone('${b.id}')">完成にする</button>
+        </div>
+        <div class="btn-row tight">
+          <button class="btn" onclick="openEdit('${b.id}')">編集</button>
           <button class="btn quiet" onclick="delBatch('${b.id}')">削除</button>
         </div>
         <div class="btn-row tight">
@@ -979,6 +1016,84 @@ function askDelLog(logId){
     save(); render(); renderLogList(); renderPhotoArea();
     toast('記録を削除しました');
   });
+}
+
+/* ---------- 編集 ----------
+   仕込み後に直せるものが何も無いと、日数や開始日の打ち間違いがずっと残る。
+   完成済み（アーカイブ）は読み取り専用のままにする。 */
+function openEdit(id){
+  modalTarget = id;
+  const b = batches.find(x=>x.id===id);
+  document.getElementById('me-name').textContent   = b.name;
+  document.getElementById('me-title').value  = b.name;
+  document.getElementById('me-date').value   = b.startDate;
+  document.getElementById('me-d1').value     = b.d1;
+  document.getElementById('me-d2').value     = b.d2;
+  document.getElementById('me-spice').value  = b.spice || '';
+  document.getElementById('me-salt').value   = b.saltPct;
+  document.getElementById('me-sugar').value  = b.sugarPct;
+  document.getElementById('me-weight').value = b.meatWeight || '';
+  editBaseNote();
+  document.getElementById('modal-edit').classList.add('show');
+}
+
+/* 仕込み重量の1件目（アプリが自動で作った基準値）を探す。
+   手で書き換えられた記録には触らないので、日付と値の両方が一致するものだけ返す */
+function baseLog(b){
+  return b.logs.find(l=>l.date===b.startDate && l.grams===b.meatWeight) || null;
+}
+
+/* 仕込み重量を変えると重量記録の1件目と食い違う。
+   確認の小窓を増やす代わりに、変えている最中に注記を出す */
+function editBaseNote(){
+  const b    = batches.find(x=>x.id===modalTarget);
+  const note = document.getElementById('me-note');
+  const base = b ? baseLog(b) : null;
+  const w    = parseFloat(document.getElementById('me-weight').value);
+  if(base && w>0 && w!==b.meatWeight){
+    note.textContent = '※ 重量記録の1件目（'+base.grams+'g・基準）も同じ値に直します';
+    note.hidden = false;
+  }else{
+    note.hidden = true;
+  }
+}
+
+function saveEdit(){
+  const b = batches.find(x=>x.id===modalTarget);
+  const name  = document.getElementById('me-title').value.trim() || 'パンチェッタ';
+  const date  = document.getElementById('me-date').value;
+  const d1    = parseInt(document.getElementById('me-d1').value, 10);
+  const d2    = parseInt(document.getElementById('me-d2').value, 10);
+  const spice = document.getElementById('me-spice').value.trim();
+  const salt  = parseFloat(document.getElementById('me-salt').value);
+  const sugar = parseFloat(document.getElementById('me-sugar').value);
+  const wRaw  = document.getElementById('me-weight').value.trim();
+  const w     = wRaw==='' ? 0 : parseFloat(wRaw);
+
+  if(!date){ toast('仕込み開始日を入力してください'); return; }
+  if(!(d1>=1) || !(d2>=1)){ toast('日数は1日以上で入力してください'); return; }
+  if(!(salt>=0) || !(sugar>=0) || !(w>=0)){ toast('数値は0以上で入力してください'); return; }
+
+  /* 日程が動いたか。カレンダーに登録済みの予定がズレるので後で知らせる */
+  const moved = (b.startDate!==date || b.d1!==d1 || b.d2!==d2);
+  const wasReg = b.calReg;
+
+  /* 仕込み重量を変えたとき、自動で作った基準値も合わせる（先に探しておく） */
+  const base = baseLog(b);
+
+  b.name = name; b.startDate = date; b.d1 = d1; b.d2 = d2;
+  b.spice = spice; b.saltPct = salt; b.sugarPct = sugar;
+
+  if(base && w>0 && w!==b.meatWeight) base.grams = w;
+  b.meatWeight = w;
+
+  if(moved && wasReg) b.calReg = false;
+
+  save(); render();
+  closeModal('modal-edit');
+  toast(moved && wasReg
+    ? '日程が変わりました。カレンダーの予定を登録し直してください'
+    : '変更を保存しました');
 }
 
 /* ---------- 完成処理 ---------- */
