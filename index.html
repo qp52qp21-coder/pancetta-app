@@ -138,6 +138,13 @@
   .arch-sub{font-size:12px;color:var(--brown-soft);margin-top:2px;}
   .arch-memo{font-size:13.5px;margin-top:8px;background:var(--cream);
     border-radius:10px;padding:8px 10px;white-space:pre-wrap;}
+  .arch-log{margin-top:10px;}
+  .arch-log summary{font-size:12.5px;font-weight:700;color:var(--rose);cursor:pointer;
+    list-style:none;padding:6px 0;}
+  .arch-log summary::-webkit-details-marker{display:none;}
+  .arch-log summary::before{content:'▸ ';}
+  .arch-log[open] summary::before{content:'▾ ';}
+  .arch-log .log-list{margin-top:0;}
 
   /* ===== モーダル ===== */
   .modal-bg{position:fixed;inset:0;background:rgba(59,42,34,.45);display:none;
@@ -160,10 +167,31 @@
     color:var(--brown-soft);letter-spacing:.06em;}
   .cal-link .cal-label{display:block;font-size:15px;font-weight:700;color:var(--rose);}
 
-  .weight-log{font-size:13px;margin-top:10px;}
-  .weight-log li{display:flex;justify-content:space-between;padding:5px 2px;
+  .log-list{font-size:13px;margin-top:14px;border-top:1px solid var(--cream-deep);}
+  .log-list li{display:flex;gap:8px;align-items:flex-start;padding:8px 2px;
     border-bottom:1px dashed var(--cream-deep);list-style:none;}
-  .weight-log .loss{color:var(--rose);font-weight:700;}
+  .log-list .d{color:var(--brown-soft);flex:0 0 42px;font-size:12px;padding-top:1px;}
+  .log-list .t{flex:1;min-width:0;line-height:1.5;word-break:break-word;}
+  .log-list .g{font-weight:700;}
+  .log-list .loss{color:var(--rose);font-weight:700;margin-left:6px;}
+  .log-list .memo{white-space:pre-wrap;margin-top:2px;}
+  .log-list .x{border:none;background:none;color:var(--brown-soft);font-size:15px;
+    cursor:pointer;padding:2px 4px;flex:0 0 auto;line-height:1;}
+  .edit-note{font-size:11.5px;color:var(--rose);background:var(--rose-soft);
+    border-radius:8px;padding:7px 10px;margin-top:6px;line-height:1.5;}
+
+  /* 写真 */
+  .thumbs{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
+  .thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;
+    border:1px solid var(--cream-deep);background:var(--rose-soft);cursor:pointer;}
+  .log-list .thumb{width:44px;height:44px;}
+  .thumb-add{width:52px;height:52px;border-radius:8px;border:1.5px dashed var(--cream-deep);
+    background:#fff;color:var(--brown-soft);font:inherit;font-size:11px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.3;}
+  .photo-view{align-items:center;background:rgba(59,42,34,.88);}
+  .photo-stage{width:100%;max-width:480px;padding:16px;}
+  .photo-stage img{width:100%;border-radius:12px;background:var(--cream);display:block;}
+  .photo-stage .btn{background:var(--cream);}
 
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
     background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
@@ -240,16 +268,52 @@
   </nav>
 </div>
 
-<!-- 重量記録モーダル -->
-<div class="modal-bg" id="modal-weight">
+<!-- 編集モーダル -->
+<div class="modal-bg" id="modal-edit">
   <div class="modal">
-    <button class="close-x" onclick="closeModal('modal-weight')">✕</button>
-    <h3>重量を記録</h3>
-    <p style="font-size:12px;color:var(--brown-soft);" id="mw-name"></p>
-    <label>今日の重量（g）</label>
-    <input type="number" id="mw-grams" inputmode="decimal" placeholder="例：420">
-    <div class="btn-row"><button class="btn primary" onclick="saveWeight()">記録する</button></div>
-    <ul class="weight-log" id="mw-log"></ul>
+    <button class="close-x" onclick="closeModal('modal-edit')">✕</button>
+    <h3>仕込みを編集</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="me-name"></p>
+    <label>仕込み名</label>
+    <input type="text" id="me-title">
+    <label>仕込み開始日</label>
+    <input type="date" id="me-date">
+    <div class="row2">
+      <div><label>塩漬け（日）</label><input type="number" id="me-d1" inputmode="numeric"></div>
+      <div><label>スパイス熟成（日）</label><input type="number" id="me-d2" inputmode="numeric"></div>
+    </div>
+    <label>スパイスメモ</label>
+    <input type="text" id="me-spice" placeholder="例：黒コショウ＋チリパウダー">
+    <div class="row2">
+      <div><label>塩（%）</label><input type="number" id="me-salt" inputmode="decimal" step="0.1"></div>
+      <div><label>砂糖（%）</label><input type="number" id="me-sugar" inputmode="decimal" step="0.1"></div>
+    </div>
+    <label>仕込み重量（g）</label>
+    <input type="number" id="me-weight" inputmode="decimal" oninput="editBaseNote()">
+    <p class="edit-note" id="me-note" hidden></p>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-edit')">やめる</button>
+      <button class="btn primary" onclick="saveEdit()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 記録モーダル（重量・メモ・写真） -->
+<div class="modal-bg" id="modal-log">
+  <div class="modal">
+    <button class="close-x" onclick="closeLog()">✕</button>
+    <h3>今日の記録</h3>
+    <p style="font-size:12px;color:var(--brown-soft);" id="ml-name"></p>
+    <div class="row2">
+      <div><label>日付</label><input type="date" id="ml-date"></div>
+      <div><label>重量（g）※任意</label>
+        <input type="number" id="ml-grams" inputmode="decimal" placeholder="例：420"></div>
+    </div>
+    <label>メモ ※任意</label>
+    <textarea id="ml-memo" rows="2" placeholder="例：ラップでくるんで冷蔵庫で熟成"></textarea>
+    <div id="ml-photo-area"></div>
+    <div class="btn-row"><button class="btn primary" onclick="saveLog()">記録する</button></div>
+    <ul class="log-list" id="ml-list"></ul>
   </div>
 </div>
 
@@ -272,9 +336,9 @@
 <div class="modal-bg" id="modal-del">
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-del')">✕</button>
-    <h3>この仕込みを削除しますか？</h3>
+    <h3 id="dl-title">この仕込みを削除しますか？</h3>
     <p style="font-size:12px;color:var(--brown-soft);margin-top:4px;" id="dl-name"></p>
-    <p style="font-size:12px;color:var(--brown-soft);">削除すると記録は元に戻せません。</p>
+    <p style="font-size:12px;color:var(--brown-soft);" id="dl-note">削除すると記録は元に戻せません。</p>
     <div class="btn-row">
       <button class="btn" onclick="closeModal('modal-del')">やめる</button>
       <button class="btn primary" onclick="confirmDel()">削除する</button>
@@ -290,9 +354,22 @@
     <p style="font-size:12px;color:var(--brown-soft);" id="mc-name"></p>
     <p style="font-size:13px;margin-top:12px;">下のボタンを押すとGoogleカレンダーが開きます。内容は入力済みなので「保存」を押すだけです。</p>
     <div id="mc-links"></div>
+    <p style="font-size:11.5px;color:var(--rose);margin-top:12px;line-height:1.55;">
+      ※前に登録した予定は、カレンダーアプリで手で削除してください。アプリから消すことはできません。</p>
     <p style="font-size:11.5px;color:var(--brown-soft);margin-top:12px;line-height:1.55;">
       ※通知が鳴る時刻はGoogleカレンダーの設定に従います（既定では予定の30分前）。ちょうど5:00に鳴らすには、カレンダー側で通知を「0分前」に変更してください。</p>
     <div class="btn-row"><button class="btn" onclick="closeModal('modal-cal')">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 写真の全画面表示 -->
+<div class="modal-bg photo-view" id="modal-photo">
+  <div class="photo-stage">
+    <img id="pv-img" alt="記録した写真">
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-photo')">閉じる</button>
+      <button class="btn quiet" id="pv-del" onclick="delPhoto()">この写真を削除</button>
+    </div>
   </div>
 </div>
 
@@ -303,7 +380,7 @@
    パンチェッタ熟成手帳
    データ構造：
    batch = { id, name, startDate(YYYY-MM-DD), d1, d2, saltPct, sugarPct,
-             meatWeight, spice, weights:[{date,grams}],
+             meatWeight, spice, logs:[{id,date,grams,memo,photos}],
              status:'curing'|'done', rating, memo, doneDate }
    ============================================================ */
 const KEY = 'pancetta-batches';
@@ -317,11 +394,138 @@ function load(){
     const r = localStorage.getItem(KEY);
     if(r) batches = JSON.parse(r);
   }catch(e){ /* 初回はデータが無いだけなので無視 */ }
+  if(migrate()) save();
   render();
 }
+
+/* ---------- 旧データの読み替え ----------
+   weights:[{date,grams}] を logs:[{id,date,grams,memo,photos}] にする。
+   一度変換すれば logs が存在するので、次回以降は何もしない。 */
+function migrate(){
+  let changed = false;
+  batches.forEach(b=>{
+    if(!Array.isArray(b.logs)){
+      b.logs = (b.weights||[]).map(w=>({
+        id: uid(), date: w.date, grams: w.grams, memo:'', photos:[]
+      }));
+      changed = true;
+    }
+    if('weights' in b){ delete b.weights; changed = true; }
+  });
+  return changed;
+}
 function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(batches)); }
-  catch(e){ toast('保存に失敗しました'); }
+  try{ localStorage.setItem(KEY, JSON.stringify(batches)); return true; }
+  catch(e){ toast('保存できませんでした。端末の空き容量を確認してください'); return false; }
+}
+
+/* ---------- 写真の保存箱（IndexedDB） ----------
+   画像そのものは localStorage に入れない。localStorage の上限は約5MBで、
+   あふれると仕込みデータの保存まで巻き添えで失敗するため、別の箱に分ける。
+   IndexedDB は Blob をそのまま置けるので、文字列化による1.3倍の膨張も無い。 */
+const PDB_NAME = 'pancetta-photos';
+const PDB_STORE = 'photos';
+let pdb = null;        // 開いた接続を使い回す
+let photoOK = false;   // 写真機能を出してよいか（起動時に判定）
+
+function photoOpen(){
+  return new Promise(resolve=>{
+    if(pdb) return resolve(pdb);
+    if(!window.indexedDB) return resolve(null);
+    let req;
+    try{ req = indexedDB.open(PDB_NAME, 1); }
+    catch(e){ return resolve(null); }
+    req.onupgradeneeded = ()=>{
+      const db = req.result;
+      if(!db.objectStoreNames.contains(PDB_STORE)){
+        const st = db.createObjectStore(PDB_STORE, {keyPath:'id'});
+        st.createIndex('batchId', 'batchId', {unique:false});
+      }
+    };
+    req.onsuccess = ()=>{ pdb = req.result; resolve(pdb); };
+    req.onerror   = ()=> resolve(null);
+    req.onblocked = ()=> resolve(null);
+  });
+}
+
+function photoReady(){ return photoOpen().then(db=>!!db); }
+
+function photoPut(rec){
+  return photoOpen().then(db=>{
+    if(!db) return Promise.reject(new Error('写真の保存箱を開けません'));
+    return new Promise((res,rej)=>{
+      const tx = db.transaction(PDB_STORE,'readwrite');
+      tx.objectStore(PDB_STORE).put(rec);
+      tx.oncomplete = ()=>res(rec.id);
+      tx.onerror    = ()=>rej(tx.error || new Error('保存に失敗'));
+      tx.onabort    = ()=>rej(tx.error || new Error('保存が中断'));
+    });
+  });
+}
+
+function photoGet(id){
+  return photoOpen().then(db=>{
+    if(!db) return null;
+    return new Promise(res=>{
+      const req = db.transaction(PDB_STORE,'readonly').objectStore(PDB_STORE).get(id);
+      req.onsuccess = ()=>res(req.result || null);
+      req.onerror   = ()=>res(null);
+    });
+  });
+}
+
+function photoDel(ids){
+  if(!ids || !ids.length) return Promise.resolve();
+  return photoOpen().then(db=>{
+    if(!db) return;
+    return new Promise(res=>{
+      const tx = db.transaction(PDB_STORE,'readwrite');
+      const st = tx.objectStore(PDB_STORE);
+      ids.forEach(id=>st.delete(id));
+      tx.oncomplete = ()=>res();
+      tx.onerror    = ()=>res();   /* 消し損ねても操作は続行させる */
+      tx.onabort    = ()=>res();   /* 中断もここで受ける。放置すると呼び出し元が待ち続ける */
+    });
+  });
+}
+
+/* 仕込みを削除したとき、その仕込みの写真をまとめて消す。
+   消し残すと二度と参照されない画像が容量を食い続けるため。 */
+function photoDelBatch(batchId){
+  return photoOpen().then(db=>{
+    if(!db) return;
+    return new Promise(res=>{
+      const tx  = db.transaction(PDB_STORE,'readwrite');
+      const req = tx.objectStore(PDB_STORE).index('batchId').openCursor(IDBKeyRange.only(batchId));
+      req.onsuccess = ()=>{ const c = req.result; if(c){ c.delete(); c.continue(); } };
+      tx.oncomplete = ()=>res();
+      tx.onerror    = ()=>res();
+      tx.onabort    = ()=>res();   /* 中断もここで受ける。放置すると呼び出し元が待ち続ける */
+    });
+  });
+}
+
+/* 端末の写真は1枚4MB前後ある。そのままでは保存箱がすぐ膨らむので、
+   長辺1000px・JPEG品質75%に縮めてから保存する（おおよそ100KB前後になる）。
+   元が1000px以下なら引き伸ばさない。 */
+function shrink(file){
+  return new Promise((res,rej)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      const MAX = 1000;
+      const scale = Math.min(1, MAX/Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width  * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      cv.toBlob(b=> b ? res(b) : rej(new Error('画像を変換できません')), 'image/jpeg', 0.75);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); rej(new Error('画像を読めません')); };
+    img.src = url;
+  });
 }
 
 /* ---------- 豚さん（SVGイラスト） ----------
@@ -353,6 +557,22 @@ function pig(size, mood){
     <ellipse cx="35.6" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
     ${extra}
   </svg>`;
+}
+
+/* ---------- 識別子 ----------
+   Date.now() だけだと、同じミリ秒に複数の写真を保存したときIDがぶつかる。
+   乱数4桁を足して避ける。 */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+/* 日数は整数だけ受け付ける。parseInt は "7.9" を黙って 7 にするので、
+   切り捨てた値で保存すると入力した本人に理由が分からない */
+function intDays(s){ return /^\d+$/.test(s); }
+
+/* 記録を日付の昇順で差し込む。同じ日付のものは追加した順に並ぶ
+   （Array.sort は同値の順序を保つため） */
+function addLog(b, log){
+  b.logs.push(log);
+  b.logs.sort((x,y)=> x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
 }
 
 /* ---------- 日付ユーティリティ ---------- */
@@ -439,31 +659,38 @@ function addBatch(){
   const w  = parseFloat(document.getElementById('in-weight').value) || 0;
   const name = document.getElementById('in-name').value.trim() || 'パンチェッタ';
   const date = document.getElementById('in-date').value || todayStr();
-  const d1 = parseInt(document.getElementById('in-d1').value)||7;
-  const d2 = parseInt(document.getElementById('in-d2').value)||7;
+  const d1Raw = document.getElementById('in-d1').value.trim();
+  const d2Raw = document.getElementById('in-d2').value.trim();
+  if((d1Raw!=='' && !intDays(d1Raw)) || (d2Raw!=='' && !intDays(d2Raw))){
+    toast('日数は1日以上の整数で入力してください'); return;
+  }
+  const d1 = d1Raw==='' ? 7 : parseInt(d1Raw, 10);
+  const d2 = d2Raw==='' ? 7 : parseInt(d2Raw, 10);
+  if(!(d1>=1) || !(d2>=1)){ toast('日数は1日以上の整数で入力してください'); return; }
   const b = {
-    id: Date.now().toString(36),
+    id: uid(),
     name, startDate: date, d1, d2,
     saltPct : parseFloat(document.getElementById('in-salt').value)||0,
     sugarPct: parseFloat(document.getElementById('in-sugar').value)||0,
     meatWeight: w,
     spice: document.getElementById('in-spice').value.trim(),
-    weights: w>0 ? [{date, grams:w}] : [],
+    logs: w>0 ? [{id:uid(), date, grams:w, memo:'', photos:[]}] : [],
     status:'curing', rating:0, memo:'', doneDate:null,
     calReg:false                       // カレンダーへ通知を登録したか
   };
   batches.unshift(b);
-  save(); render();
+  const ok = save(); render();
   document.getElementById('in-name').value='';
   document.getElementById('in-spice').value='';
   showTab('home');
-  toast('仕込みを登録しました 🥓');
+  if(ok) toast('仕込みを登録しました 🥓');
   /* 登録直後が最も設定しやすいので、通知登録の画面を続けて開く */
   setTimeout(()=>openCal(b.id), 400);
 }
 
 /* ---------- 描画 ---------- */
 function render(){
+  freeUrls();
   renderNotice();
   /* --- 熟成中 --- */
   const list = document.getElementById('batch-list');
@@ -492,8 +719,9 @@ function render(){
       const C = 2*Math.PI*40;
       /* 重量減少率 */
       let lossHtml='–';
-      if(b.weights.length>=1 && b.weights[0].grams>0){
-        const first=b.weights[0].grams, last=b.weights[b.weights.length-1].grams;
+      const gl = b.logs.filter(l=>l.grams>0);
+      if(gl.length>=1){
+        const first=gl[0].grams, last=gl[gl.length-1].grams;
         lossHtml = first===last ? '0%' : '-'+(((first-last)/first)*100).toFixed(1)+'%';
       }
       const gouhai = b.saltPct? '塩'+b.saltPct+'% / 砂糖'+b.sugarPct+'%' : '配合未登録';
@@ -526,8 +754,11 @@ function render(){
           <div class="meta-box"><div class="v">${fmt(doneDay)}</div><div class="l">完成予定</div></div>
         </div>
         <div class="btn-row">
-          <button class="btn" onclick="openWeight('${b.id}')">重量を記録</button>
+          <button class="btn" onclick="openLog('${b.id}')">記録する</button>
           <button class="btn primary" onclick="openDone('${b.id}')">完成にする</button>
+        </div>
+        <div class="btn-row tight">
+          <button class="btn" onclick="openEdit('${b.id}')">編集</button>
           <button class="btn quiet" onclick="delBatch('${b.id}')">削除</button>
         </div>
         <div class="btn-row tight">
@@ -547,8 +778,9 @@ function render(){
   }else{
     arch.innerHTML = done.map(b=>{
       let loss='';
-      if(b.weights.length>=2){
-        const f=b.weights[0].grams,l=b.weights[b.weights.length-1].grams;
+      const gl = b.logs.filter(l=>l.grams>0);
+      if(gl.length>=2){
+        const f=gl[0].grams, l=gl[gl.length-1].grams;
         loss='・重量 -'+(((f-l)/f)*100).toFixed(1)+'%';
       }
       return `
@@ -558,10 +790,13 @@ function render(){
         <div class="arch-sub">${b.startDate.replaceAll('-','/')} 仕込み ・ 塩${b.saltPct}% / 砂糖${b.sugarPct}% ${loss}</div>
         ${b.spice? '<div class="arch-sub">スパイス：'+esc(b.spice)+'</div>':''}
         ${b.memo? '<div class="arch-memo">'+esc(b.memo)+'</div>':''}
+        ${b.logs.length? '<details class="arch-log"><summary>記録を見る（'+b.logs.length+'件）</summary>'
+          + '<ul class="log-list">'+logRows(b,false)+'</ul></details>' : ''}
         <div class="btn-row"><button class="btn quiet" onclick="delBatch('${b.id}')">削除</button></div>
       </div>`;
     }).join('');
   }
+  hydratePhotos();
 }
 function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -588,28 +823,325 @@ function renderNotice(){
     + '</ul></div>';
 }
 
-/* ---------- 重量記録 ---------- */
-function openWeight(id){
+/* ---------- 記録（重量・メモ・写真） ----------
+   重量とメモを別々のボタンにすると、書く内容によって押し分ける判断が毎回発生する。
+   「記録する」1つに集め、書きたい欄だけ埋めてもらう。 */
+let draftPhotos = [];    // 保存前に追加された写真ID（Task 4 で使う）
+/* 記録モーダルを開く・閉じる・保存するたびに進める番号。
+   写真の縮小中に閉じられたことを、あとから解決した処理が気づくために使う */
+let logSession = 0;
+
+function openLog(id){
+  modalTarget = id;
+  logSession++;
+  const b = batches.find(x=>x.id===id);
+  document.getElementById('ml-name').textContent =
+    b.name + ' ・ ' + daysElapsed(b.startDate) + '日目';
+  document.getElementById('ml-date').value  = todayStr();
+  document.getElementById('ml-grams').value = '';
+  document.getElementById('ml-memo').value  = '';
+  draftPhotos = [];
+  freeUrls();
+  renderPhotoArea();
+  renderLogList();
+  document.getElementById('modal-log').classList.add('show');
+}
+
+function renderLogList(){
+  const b = batches.find(x=>x.id===modalTarget);
+  document.getElementById('ml-list').innerHTML = logRows(b, true);
+  hydratePhotos();
+}
+
+/* 記録一覧の中身。新しいものが上。
+   減少率の基準は「重量を書いた記録のうち最も古いもの」。 */
+function logRows(b, withDel){
+  if(!b.logs.length) return '<li><span class="t">まだ記録がありません</span></li>';
+  const gl = b.logs.filter(l=>l.grams>0);
+  const base = gl.length ? gl[0].grams : 0;
+  return b.logs.slice().reverse().map(l=>{
+    let g = '';
+    if(l.grams>0){
+      /* 記録は日付順に並ぶが入力順とは限らない（後から前の日を書き足せる）ので、
+         基準より重い記録もあり得る。符号は計算結果から決める */
+      const diff = base>0 ? ((base-l.grams)/base)*100 : 0;
+      const loss = (base>0 && l.grams!==base)
+        ? '<span class="loss">'+(diff>0?'-':'+')+Math.abs(diff).toFixed(1)+'%</span>'
+        : '<span class="loss">基準</span>';
+      g = '<span class="g">'+l.grams+'g</span>'+loss;
+    }
+    const m  = l.memo ? '<div class="memo">'+esc(l.memo)+'</div>' : '';
+    const ph = photoThumbs(l, withDel);
+    const x  = withDel ? '<button class="x" onclick="askDelLog(\''+l.id+'\')">✕</button>' : '';
+    return '<li><span class="d">'+fmt(parseD(l.date))+'</span>'
+         + '<span class="t">'+g+m+ph+'</span>'+x+'</li>';
+  }).join('');
+}
+
+function saveLog(){
+  const b    = batches.find(x=>x.id===modalTarget);
+  const date = document.getElementById('ml-date').value;
+  const gRaw = document.getElementById('ml-grams').value.trim();
+  const memo = document.getElementById('ml-memo').value.trim();
+  if(!date){ toast('日付を入力してください'); return; }
+  let grams = null;
+  if(gRaw !== ''){
+    const g = parseFloat(gRaw);
+    if(!(g>0)){ toast('重量は正の数で入力してください'); return; }
+    grams = g;
+  }
+  if(grams===null && !memo && draftPhotos.length===0){
+    toast('重量・メモ・写真のどれかを入力してください'); return;
+  }
+  addLog(b, {id:uid(), date, grams, memo, photos:draftPhotos.slice()});
+  draftPhotos = [];
+  logSession++;                /* 保存後に届いた写真を、この記録に混ぜない */
+  const ok = save();
+  render();
+  closeModal('modal-log');
+  if(ok) toast('記録しました');
+}
+
+/* ---------- 写真 ----------
+   IndexedDB から取り出した Blob は、表示のたびに一時URLを作る必要がある。
+   作りっぱなしだとメモリに残るので、描き直す前に必ず破棄する。 */
+let objUrls = [];
+let viewingPhoto = null;   // 全画面表示中の写真ID
+let viewingCanDel = false; // その写真を削除してよいか（アーカイブから開いたときは false）
+
+function freeUrls(){
+  objUrls.forEach(u=>URL.revokeObjectURL(u));
+  objUrls = [];
+  /* URLを捨てた img は src が無効になる。hydratePhotos() が入れ直せるよう印を戻す
+     （:not([src]) で選ぶため、src が残っていると対象から漏れる） */
+  document.querySelectorAll('img[data-photo]').forEach(el=>el.removeAttribute('src'));
+}
+
+/* 一覧・履歴に置くサムネイルの器。画像は hydratePhotos() が後から流し込む。
+   canDel は全画面表示に削除ボタンを出すかどうか。アーカイブは読み取り専用なので false */
+function photoThumbs(l, canDel){
+  if(!l.photos || !l.photos.length) return '';
+  return '<div class="thumbs">'
+    + l.photos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="記録した写真" '
+        + 'onclick="viewPhoto(\''+p+'\','+(canDel?'true':'false')+')">').join('')
+    + '</div>';
+}
+
+/* data-photo を持つ img に、IndexedDB の画像を流し込む。
+   innerHTML を書き換えた後に必ず呼ぶ */
+function hydratePhotos(){
+  document.querySelectorAll('img[data-photo]:not([src])').forEach(el=>{
+    photoGet(el.dataset.photo).then(rec=>{
+      if(!rec) return;
+      const u = URL.createObjectURL(rec.blob);
+      objUrls.push(u);
+      el.src = u;
+    });
+  });
+}
+
+/* ✕ で閉じたときは、追加済みの写真が行き場を失う。
+   保存されない写真を残すと、二度と参照されないまま容量を食い続ける */
+function closeLog(){
+  logSession++;
+  if(draftPhotos.length){ photoDel(draftPhotos); draftPhotos = []; }
+  closeModal('modal-log');
+}
+
+/* 記録モーダルの写真欄。写真機能が使えない端末では何も出さない */
+function renderPhotoArea(){
+  const box = document.getElementById('ml-photo-area');
+  if(!photoOK){ box.innerHTML = ''; return; }
+  box.innerHTML =
+    '<label>写真 ※任意</label>'
+    + '<div class="thumbs" id="ml-thumbs">'
+    +   draftPhotos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="追加した写真" '
+          + 'onclick="viewPhoto(\''+p+'\',true)">').join('')
+    +   (draftPhotos.length < 4
+          ? '<button class="thumb-add" onclick="document.getElementById(\'ml-file\').click()">＋<br>追加</button>'
+          : '')
+    + '</div>'
+    + '<input type="file" id="ml-file" accept="image/*" multiple hidden onchange="pickPhotos(this)">';
+  hydratePhotos();
+}
+
+function pickPhotos(input){
+  const files = Array.from(input.files || []);
+  input.value = '';                       /* 同じ写真を続けて選べるようにする */
+  if(!files.length) return;
+  const room = 4 - draftPhotos.length;
+  if(room <= 0){ toast('写真は1件につき4枚までです'); return; }
+  if(files.length > room) toast('写真は1件につき4枚までです');
+  const use = files.slice(0, room);
+  const batchId = modalTarget;
+  const session = logSession;
+  /* 1枚が失敗しても、成功した分は取りこぼさずに拾う。
+     Promise.all だと最初の失敗で成功分のIDが手元に来ず、
+     IndexedDB に書かれたまま参照されない写真が残ってしまう */
+  Promise.allSettled(use.map(f=>
+    shrink(f).then(blob=>{
+      const id = uid();
+      return photoPut({id, batchId, blob, created:Date.now()}).then(()=>id);
+    })
+  )).then(results=>{
+    const ids    = results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+    const failed = results.length - ids.length;
+    /* 縮小している間に、別の仕込みへ移ったり、閉じたり、保存し終えていたら、
+       この写真は行き場が無い。持ち越さずに消す。
+       閉じても modalTarget は同じ仕込みのままなので、番号でも見分ける */
+    if(modalTarget !== batchId || logSession !== session){ photoDel(ids); return; }
+    /* 待っている間に別の選択が確定していることがあるので、残り枠は今の数で数え直す */
+    const left = Math.max(0, 4 - draftPhotos.length);
+    const keep = ids.slice(0, left);
+    const over = ids.slice(left);
+    if(over.length) photoDel(over);
+    draftPhotos = draftPhotos.concat(keep);
+    if(failed)          toast('写真を保存できませんでした');
+    else if(over.length) toast('写真は1件につき4枚までです');
+    renderPhotoArea();
+  });
+}
+
+function viewPhoto(photoId, canDel){
+  viewingPhoto = photoId;
+  /* 完成済みの記録は読み取り専用なので、そこから開いたときは削除ボタンを出さない。
+     隠すだけだと処理そのものは呼べてしまうので、可否も控えて delPhoto 側でも見る */
+  viewingCanDel = !!canDel;
+  document.getElementById('pv-del').hidden = !canDel;
+  const img = document.getElementById('pv-img');
+  img.removeAttribute('src');
+  photoGet(photoId).then(rec=>{
+    if(!rec){ toast('写真が見つかりません'); return; }
+    const u = URL.createObjectURL(rec.blob);
+    objUrls.push(u);
+    img.src = u;
+  });
+  document.getElementById('modal-photo').classList.add('show');
+}
+
+/* 全画面表示からの1枚削除。誤タップしにくい位置なので確認は挟まない */
+function delPhoto(){
+  const id = viewingPhoto;
+  if(!id || !viewingCanDel) return;   /* アーカイブの写真は消させない */
+  photoDel([id]);
+  batches.forEach(b=> b.logs.forEach(l=>{
+    if(l.photos) l.photos = l.photos.filter(p=>p!==id);
+  }));
+  draftPhotos = draftPhotos.filter(p=>p!==id);
+  viewingPhoto = null;
+  const ok = save();
+  render();
+  closeModal('modal-photo');
+  if(document.getElementById('modal-log').classList.contains('show')){
+    renderLogList(); renderPhotoArea();
+  }
+  if(ok) toast('写真を削除しました');
+}
+
+/* 記録1件を消す。写真も道連れにする（残しても参照する先が無いため） */
+function askDelLog(logId){
+  const b = batches.find(x=>x.id===modalTarget);
+  const l = b.logs.find(x=>x.id===logId);
+  if(!l) return;
+  askDel('この記録を削除しますか？', fmt(parseD(l.date)) + ' の記録',
+         '写真も一緒に削除されます。元に戻せません。', ()=>{
+    photoDel(l.photos);
+    b.logs = b.logs.filter(x=>x.id!==logId);
+    const ok = save();
+    render(); renderLogList(); renderPhotoArea();
+    if(ok) toast('記録を削除しました');
+  });
+}
+
+/* ---------- 編集 ----------
+   仕込み後に直せるものが何も無いと、日数や開始日の打ち間違いがずっと残る。
+   完成済み（アーカイブ）は読み取り専用のままにする。 */
+function openEdit(id){
   modalTarget = id;
   const b = batches.find(x=>x.id===id);
-  document.getElementById('mw-name').textContent = b.name;
-  document.getElementById('mw-grams').value='';
-  const log = document.getElementById('mw-log');
-  const first = b.weights.length? b.weights[0].grams : 0;
-  log.innerHTML = b.weights.map(w=>{
-    const loss = first>0 && w.grams!==first ? '<span class="loss">-'+(((first-w.grams)/first)*100).toFixed(1)+'%</span>' : '<span>基準</span>';
-    return '<li><span>'+w.date.replaceAll('-','/')+'</span><span>'+w.grams+'g</span>'+loss+'</li>';
-  }).join('') || '<li><span>記録なし</span></li>';
-  document.getElementById('modal-weight').classList.add('show');
+  document.getElementById('me-name').textContent   = b.name;
+  document.getElementById('me-title').value  = b.name;
+  document.getElementById('me-date').value   = b.startDate;
+  document.getElementById('me-d1').value     = b.d1;
+  document.getElementById('me-d2').value     = b.d2;
+  document.getElementById('me-spice').value  = b.spice || '';
+  document.getElementById('me-salt').value   = b.saltPct;
+  document.getElementById('me-sugar').value  = b.sugarPct;
+  document.getElementById('me-weight').value = b.meatWeight || '';
+  editBaseNote();
+  document.getElementById('modal-edit').classList.add('show');
 }
-function saveWeight(){
-  const g = parseFloat(document.getElementById('mw-grams').value);
-  if(!(g>0)){ toast('重量を入力してください'); return; }
+
+/* 仕込み重量の1件目（アプリが自動で作った基準値）を探す。
+   手で書き換えられた記録には触らないので、日付と値の両方が一致するものだけ返す */
+function baseLog(b){
+  return b.logs.find(l=>l.date===b.startDate && l.grams===b.meatWeight) || null;
+}
+
+/* 仕込み重量を変えると重量記録の1件目と食い違う。
+   確認の小窓を増やす代わりに、変えている最中に注記を出す */
+function editBaseNote(){
+  const b    = batches.find(x=>x.id===modalTarget);
+  const note = document.getElementById('me-note');
+  const base = b ? baseLog(b) : null;
+  const w    = parseFloat(document.getElementById('me-weight').value);
+  if(base && w>0 && w!==b.meatWeight){
+    note.textContent = '※ 重量記録の1件目（'+base.grams+'g・基準）も同じ値に直します';
+    note.hidden = false;
+  }else{
+    note.hidden = true;
+  }
+}
+
+function saveEdit(){
   const b = batches.find(x=>x.id===modalTarget);
-  b.weights.push({date:todayStr(), grams:g});
-  save(); render();
-  closeModal('modal-weight');
-  toast('重量を記録しました');
+  const name  = document.getElementById('me-title').value.trim() || 'パンチェッタ';
+  const date  = document.getElementById('me-date').value;
+  const d1Raw = document.getElementById('me-d1').value.trim();
+  const d2Raw = document.getElementById('me-d2').value.trim();
+  const d1    = parseInt(d1Raw, 10);
+  const d2    = parseInt(d2Raw, 10);
+  const spice = document.getElementById('me-spice').value.trim();
+  const salt  = parseFloat(document.getElementById('me-salt').value);
+  const sugar = parseFloat(document.getElementById('me-sugar').value);
+  const wRaw  = document.getElementById('me-weight').value.trim();
+  const w     = wRaw==='' ? 0 : parseFloat(wRaw);
+
+  if(!date){ toast('仕込み開始日を入力してください'); return; }
+  /* parseInt は "7.9" を黙って 7 にする。切り捨てた値で保存すると、
+     入力した本人には日数が勝手に変わった理由が分からないので、弾いて知らせる */
+  if(!intDays(d1Raw) || !intDays(d2Raw) || !(d1>=1) || !(d2>=1)){
+    toast('日数は1日以上の整数で入力してください'); return;
+  }
+  if(!(salt>=0) || !(sugar>=0) || !(w>=0)){ toast('数値は0以上で入力してください'); return; }
+
+  /* 日程が動いたか。カレンダーに登録済みの予定がズレるので後で知らせる */
+  const moved = (b.startDate!==date || b.d1!==d1 || b.d2!==d2);
+  const wasReg = b.calReg;
+
+  /* 仕込み重量を変えたとき、自動で作った基準値も合わせる（先に探しておく） */
+  const base = baseLog(b);
+
+  b.name = name; b.startDate = date; b.d1 = d1; b.d2 = d2;
+  b.spice = spice; b.saltPct = salt; b.sugarPct = sugar;
+
+  if(base && w>0 && w!==b.meatWeight){
+    base.grams = w;
+  }else if(!base && w>0 && !b.logs.some(l=>l.date===date)){
+    /* 重量を空のまま登録し、あとから入れた場合。基準が無いままだと
+       カードが「仕込み重量」と「重量変化0%」を矛盾したまま並べてしまう */
+    addLog(b, {id:uid(), date, grams:w, memo:'', photos:[]});
+  }
+  b.meatWeight = w;
+
+  if(moved && wasReg) b.calReg = false;
+
+  const ok = save();
+  render();
+  closeModal('modal-edit');
+  if(ok) toast(moved && wasReg
+    ? '日程が変わりました。カレンダーの予定を登録し直してください'
+    : '変更を保存しました');
 }
 
 /* ---------- 完成処理 ---------- */
@@ -638,26 +1170,39 @@ function saveDone(){
   b.rating=starVal;
   b.memo=document.getElementById('md-memo').value.trim();
   b.doneDate=todayStr();
-  save(); render();
+  const ok = save();
+  render();
   closeModal('modal-done');
   showTab('arch');
-  toast('アーカイブに保存しました 🎉');
+  if(ok) toast('アーカイブに保存しました 🎉');
 }
 
 /* ---------- 共通 ---------- */
-let delTarget = null;
-function delBatch(id){
-  delTarget = id;
-  const b = batches.find(x=>x.id===id);
-  document.getElementById('dl-name').textContent = b ? b.name : '';
+/* 削除確認モーダル。仕込みの削除と記録の削除で使い回す */
+let delAction = null;
+function askDel(title, name, note, fn){
+  document.getElementById('dl-title').textContent = title;
+  document.getElementById('dl-name').textContent  = name;
+  document.getElementById('dl-note').textContent  = note;
+  delAction = fn;
   document.getElementById('modal-del').classList.add('show');
 }
 function confirmDel(){
-  batches = batches.filter(b=>b.id!==delTarget);
-  delTarget = null;
-  save(); render();
+  const fn = delAction;
+  delAction = null;
   closeModal('modal-del');
-  toast('削除しました');
+  if(fn) fn();
+}
+function delBatch(id){
+  const b = batches.find(x=>x.id===id);
+  if(!b) return;
+  askDel('この仕込みを削除しますか？', b.name, '写真を含め、記録は元に戻せません。', ()=>{
+    photoDelBatch(id);
+    batches = batches.filter(x=>x.id!==id);
+    const ok = save();
+    render();
+    if(ok) toast('削除しました');
+  });
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function showTab(t){
@@ -680,6 +1225,10 @@ document.getElementById('logo').innerHTML   = pig(32,'calm');
 document.getElementById('md-pig').innerHTML = pig(64,'happy');
 document.getElementById('in-date').value = todayStr();
 load();
+
+/* 写真機能が使えるかを最初に判定する。使えない端末では写真欄を出さない
+   （重量とメモは今までどおり動く） */
+photoReady().then(ok=>{ photoOK = ok; render(); });
 </script>
 </body>
 </html>

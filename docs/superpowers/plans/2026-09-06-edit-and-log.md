@@ -34,10 +34,23 @@ localStorage、IndexedDB、Canvas、`<details>`。すべて単一の `index.html
 
 **検証の実行手順（全タスク共通）:**
 
-1. ブラウザで `index.html` を開く（`file://` で可。IndexedDB も動く）
-2. DevTools のコンソールを開く
-3. タスクに書かれた検証コードを貼って実行する
-4. 期待される出力と照合する
+`file://` で開くと origin が `null` になり、**localStorage も IndexedDB も `SecurityError` で使えない**。
+検証は必ず `http://localhost` 経由で行う（公開先の GitHub Pages と同じ条件になる）。
+
+1. 検証用サーバーを起動する（依存パッケージ不要。リポジトリには何も足さない）
+
+```bash
+node "$SCRATCH/serve.mjs" "C:/Users/pc/Claude/pancetta-app" 8765
+```
+
+`$SCRATCH` はこのセッションのスクラッチパッド。サーバーが既に動いていれば起動不要。
+
+2. ブラウザで <http://localhost:8765/index.html> を開く
+3. コンソールを開く（このセッションでは `mcp__Claude_Browser__javascript_tool` で実行する）
+4. タスクに書かれた検証コードを実行し、期待される出力と照合する
+
+`location.reload()` を含む検証は、リロード後に続きのコードを別途実行すること
+（1回の実行の中ではリロードをまたげない）。
 
 検証コードは `console.assert` ではなく **明示的に `OK` / `NG` を返す式**で書く
 （`console.assert` は通ったとき無言なので、実行したのか分かりにくい）。
@@ -1711,6 +1724,8 @@ git push origin main
 - [ ] **Step 3: 公開先で確認する**
 
 1〜3分待ってから <https://qp52qp21-coder.github.io/pancetta-app/> をスマホで開く。
+
+> このタスクは公開先を実際に書き換える。実行前に必ず依頼者の許可を取ること。
 
 - 「記録する」「編集」のボタンがある
 - 写真を1枚追加して保存できる
