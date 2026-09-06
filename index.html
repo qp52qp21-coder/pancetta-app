@@ -907,6 +907,7 @@ function saveLog(){
    作りっぱなしだとメモリに残るので、描き直す前に必ず破棄する。 */
 let objUrls = [];
 let viewingPhoto = null;   // 全画面表示中の写真ID
+let viewingCanDel = false; // その写真を削除してよいか（アーカイブから開いたときは false）
 
 function freeUrls(){
   objUrls.forEach(u=>URL.revokeObjectURL(u));
@@ -1003,7 +1004,9 @@ function pickPhotos(input){
 
 function viewPhoto(photoId, canDel){
   viewingPhoto = photoId;
-  /* 完成済みの記録は読み取り専用なので、そこから開いたときは削除ボタンを出さない */
+  /* 完成済みの記録は読み取り専用なので、そこから開いたときは削除ボタンを出さない。
+     隠すだけだと処理そのものは呼べてしまうので、可否も控えて delPhoto 側でも見る */
+  viewingCanDel = !!canDel;
   document.getElementById('pv-del').hidden = !canDel;
   const img = document.getElementById('pv-img');
   img.removeAttribute('src');
@@ -1019,7 +1022,7 @@ function viewPhoto(photoId, canDel){
 /* 全画面表示からの1枚削除。誤タップしにくい位置なので確認は挟まない */
 function delPhoto(){
   const id = viewingPhoto;
-  if(!id) return;
+  if(!id || !viewingCanDel) return;   /* アーカイブの写真は消させない */
   photoDel([id]);
   batches.forEach(b=> b.logs.forEach(l=>{
     if(l.photos) l.photos = l.photos.filter(p=>p!==id);
