@@ -770,9 +770,13 @@ function renderNotice(){
    重量とメモを別々のボタンにすると、書く内容によって押し分ける判断が毎回発生する。
    「記録する」1つに集め、書きたい欄だけ埋めてもらう。 */
 let draftPhotos = [];    // 保存前に追加された写真ID（Task 4 で使う）
+/* 記録モーダルを開く・閉じる・保存するたびに進める番号。
+   写真の縮小中に閉じられたことを、あとから解決した処理が気づくために使う */
+let logSession = 0;
 
 function openLog(id){
   modalTarget = id;
+  logSession++;
   const b = batches.find(x=>x.id===id);
   document.getElementById('ml-name').textContent =
     b.name + ' ・ ' + daysElapsed(b.startDate) + '日目';
@@ -834,6 +838,7 @@ function saveLog(){
   }
   addLog(b, {id:uid(), date, grams, memo, photos:draftPhotos.slice()});
   draftPhotos = [];
+  logSession++;                /* 保存後に届いた写真を、この記録に混ぜない */
   save(); render();
   closeModal('modal-log');
   toast('記録しました');
@@ -872,6 +877,7 @@ function hydratePhotos(){
 /* ✕ で閉じたときは、追加済みの写真が行き場を失う。
    保存されない写真を残すと、二度と参照されないまま容量を食い続ける */
 function closeLog(){
+  logSession++;
   if(draftPhotos.length){ photoDel(draftPhotos); draftPhotos = []; }
   closeModal('modal-log');
 }
@@ -902,6 +908,7 @@ function pickPhotos(input){
   if(files.length > room) toast('写真は1件につき4枚までです');
   const use = files.slice(0, room);
   const batchId = modalTarget;
+  const session = logSession;
   /* 1枚が失敗しても、成功した分は取りこぼさずに拾う。
      Promise.all だと最初の失敗で成功分のIDが手元に来ず、
      IndexedDB に書かれたまま参照されない写真が残ってしまう */
@@ -913,9 +920,10 @@ function pickPhotos(input){
   )).then(results=>{
     const ids    = results.filter(r=>r.status==='fulfilled').map(r=>r.value);
     const failed = results.length - ids.length;
-    /* 縮小している間に別の仕込みの記録モーダルへ移っていたら、
-       その写真は行き場が無い。持ち越さずに消す */
-    if(modalTarget !== batchId){ photoDel(ids); return; }
+    /* 縮小している間に、別の仕込みへ移ったり、閉じたり、保存し終えていたら、
+       この写真は行き場が無い。持ち越さずに消す。
+       閉じても modalTarget は同じ仕込みのままなので、番号でも見分ける */
+    if(modalTarget !== batchId || logSession !== session){ photoDel(ids); return; }
     /* 待っている間に別の選択が確定していることがあるので、残り枠は今の数で数え直す */
     const left = Math.max(0, 4 - draftPhotos.length);
     const keep = ids.slice(0, left);
