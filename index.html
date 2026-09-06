@@ -368,7 +368,7 @@
     <img id="pv-img" alt="記録した写真">
     <div class="btn-row">
       <button class="btn" onclick="closeModal('modal-photo')">閉じる</button>
-      <button class="btn quiet" onclick="delPhoto()">この写真を削除</button>
+      <button class="btn quiet" id="pv-del" onclick="delPhoto()">この写真を削除</button>
     </div>
   </div>
 </div>
@@ -415,8 +415,8 @@ function migrate(){
   return changed;
 }
 function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(batches)); }
-  catch(e){ toast('保存に失敗しました'); }
+  try{ localStorage.setItem(KEY, JSON.stringify(batches)); return true; }
+  catch(e){ toast('保存できませんでした。端末の空き容量を確認してください'); return false; }
 }
 
 /* ---------- 写真の保存箱（IndexedDB） ----------
@@ -564,6 +564,10 @@ function pig(size, mood){
    乱数4桁を足して避ける。 */
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
+/* 日数は整数だけ受け付ける。parseInt は "7.9" を黙って 7 にするので、
+   切り捨てた値で保存すると入力した本人に理由が分からない */
+function intDays(s){ return /^\d+$/.test(s); }
+
 /* 記録を日付の昇順で差し込む。同じ日付のものは追加した順に並ぶ
    （Array.sort は同値の順序を保つため） */
 function addLog(b, log){
@@ -655,8 +659,14 @@ function addBatch(){
   const w  = parseFloat(document.getElementById('in-weight').value) || 0;
   const name = document.getElementById('in-name').value.trim() || 'パンチェッタ';
   const date = document.getElementById('in-date').value || todayStr();
-  const d1 = parseInt(document.getElementById('in-d1').value)||7;
-  const d2 = parseInt(document.getElementById('in-d2').value)||7;
+  const d1Raw = document.getElementById('in-d1').value.trim();
+  const d2Raw = document.getElementById('in-d2').value.trim();
+  if((d1Raw!=='' && !intDays(d1Raw)) || (d2Raw!=='' && !intDays(d2Raw))){
+    toast('日数は1日以上の整数で入力してください'); return;
+  }
+  const d1 = d1Raw==='' ? 7 : parseInt(d1Raw, 10);
+  const d2 = d2Raw==='' ? 7 : parseInt(d2Raw, 10);
+  if(!(d1>=1) || !(d2>=1)){ toast('日数は1日以上の整数で入力してください'); return; }
   const b = {
     id: uid(),
     name, startDate: date, d1, d2,
@@ -669,11 +679,11 @@ function addBatch(){
     calReg:false                       // カレンダーへ通知を登録したか
   };
   batches.unshift(b);
-  save(); render();
+  const ok = save(); render();
   document.getElementById('in-name').value='';
   document.getElementById('in-spice').value='';
   showTab('home');
-  toast('仕込みを登録しました 🥓');
+  if(ok) toast('仕込みを登録しました 🥓');
   /* 登録直後が最も設定しやすいので、通知登録の画面を続けて開く */
   setTimeout(()=>openCal(b.id), 400);
 }
@@ -861,7 +871,7 @@ function logRows(b, withDel){
       g = '<span class="g">'+l.grams+'g</span>'+loss;
     }
     const m  = l.memo ? '<div class="memo">'+esc(l.memo)+'</div>' : '';
-    const ph = photoThumbs(l);
+    const ph = photoThumbs(l, withDel);
     const x  = withDel ? '<button class="x" onclick="askDelLog(\''+l.id+'\')">✕</button>' : '';
     return '<li><span class="d">'+fmt(parseD(l.date))+'</span>'
          + '<span class="t">'+g+m+ph+'</span>'+x+'</li>';
@@ -886,9 +896,10 @@ function saveLog(){
   addLog(b, {id:uid(), date, grams, memo, photos:draftPhotos.slice()});
   draftPhotos = [];
   logSession++;                /* 保存後に届いた写真を、この記録に混ぜない */
-  save(); render();
+  const ok = save();
+  render();
   closeModal('modal-log');
-  toast('記録しました');
+  if(ok) toast('記録しました');
 }
 
 /* ---------- 写真 ----------
@@ -897,14 +908,21 @@ function saveLog(){
 let objUrls = [];
 let viewingPhoto = null;   // 全画面表示中の写真ID
 
-function freeUrls(){ objUrls.forEach(u=>URL.revokeObjectURL(u)); objUrls = []; }
+function freeUrls(){
+  objUrls.forEach(u=>URL.revokeObjectURL(u));
+  objUrls = [];
+  /* URLを捨てた img は src が無効になる。hydratePhotos() が入れ直せるよう印を戻す
+     （:not([src]) で選ぶため、src が残っていると対象から漏れる） */
+  document.querySelectorAll('img[data-photo]').forEach(el=>el.removeAttribute('src'));
+}
 
-/* 一覧・履歴に置くサムネイルの器。画像は hydratePhotos() が後から流し込む */
-function photoThumbs(l){
+/* 一覧・履歴に置くサムネイルの器。画像は hydratePhotos() が後から流し込む。
+   canDel は全画面表示に削除ボタンを出すかどうか。アーカイブは読み取り専用なので false */
+function photoThumbs(l, canDel){
   if(!l.photos || !l.photos.length) return '';
   return '<div class="thumbs">'
     + l.photos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="記録した写真" '
-        + 'onclick="viewPhoto(\''+p+'\')">').join('')
+        + 'onclick="viewPhoto(\''+p+'\','+(canDel?'true':'false')+')">').join('')
     + '</div>';
 }
 
@@ -937,7 +955,7 @@ function renderPhotoArea(){
     '<label>写真 ※任意</label>'
     + '<div class="thumbs" id="ml-thumbs">'
     +   draftPhotos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="追加した写真" '
-          + 'onclick="viewPhoto(\''+p+'\')">').join('')
+          + 'onclick="viewPhoto(\''+p+'\',true)">').join('')
     +   (draftPhotos.length < 4
           ? '<button class="thumb-add" onclick="document.getElementById(\'ml-file\').click()">＋<br>追加</button>'
           : '')
@@ -983,8 +1001,10 @@ function pickPhotos(input){
   });
 }
 
-function viewPhoto(photoId){
+function viewPhoto(photoId, canDel){
   viewingPhoto = photoId;
+  /* 完成済みの記録は読み取り専用なので、そこから開いたときは削除ボタンを出さない */
+  document.getElementById('pv-del').hidden = !canDel;
   const img = document.getElementById('pv-img');
   img.removeAttribute('src');
   photoGet(photoId).then(rec=>{
@@ -1006,12 +1026,13 @@ function delPhoto(){
   }));
   draftPhotos = draftPhotos.filter(p=>p!==id);
   viewingPhoto = null;
-  save(); render();
+  const ok = save();
+  render();
   closeModal('modal-photo');
   if(document.getElementById('modal-log').classList.contains('show')){
     renderLogList(); renderPhotoArea();
   }
-  toast('写真を削除しました');
+  if(ok) toast('写真を削除しました');
 }
 
 /* 記録1件を消す。写真も道連れにする（残しても参照する先が無いため） */
@@ -1023,8 +1044,9 @@ function askDelLog(logId){
          '写真も一緒に削除されます。元に戻せません。', ()=>{
     photoDel(l.photos);
     b.logs = b.logs.filter(x=>x.id!==logId);
-    save(); render(); renderLogList(); renderPhotoArea();
-    toast('記録を削除しました');
+    const ok = save();
+    render(); renderLogList(); renderPhotoArea();
+    if(ok) toast('記録を削除しました');
   });
 }
 
@@ -1085,7 +1107,6 @@ function saveEdit(){
   if(!date){ toast('仕込み開始日を入力してください'); return; }
   /* parseInt は "7.9" を黙って 7 にする。切り捨てた値で保存すると、
      入力した本人には日数が勝手に変わった理由が分からないので、弾いて知らせる */
-  const intDays = s=>/^\d+$/.test(s);
   if(!intDays(d1Raw) || !intDays(d2Raw) || !(d1>=1) || !(d2>=1)){
     toast('日数は1日以上の整数で入力してください'); return;
   }
@@ -1101,14 +1122,21 @@ function saveEdit(){
   b.name = name; b.startDate = date; b.d1 = d1; b.d2 = d2;
   b.spice = spice; b.saltPct = salt; b.sugarPct = sugar;
 
-  if(base && w>0 && w!==b.meatWeight) base.grams = w;
+  if(base && w>0 && w!==b.meatWeight){
+    base.grams = w;
+  }else if(!base && w>0 && !b.logs.some(l=>l.date===date)){
+    /* 重量を空のまま登録し、あとから入れた場合。基準が無いままだと
+       カードが「仕込み重量」と「重量変化0%」を矛盾したまま並べてしまう */
+    addLog(b, {id:uid(), date, grams:w, memo:'', photos:[]});
+  }
   b.meatWeight = w;
 
   if(moved && wasReg) b.calReg = false;
 
-  save(); render();
+  const ok = save();
+  render();
   closeModal('modal-edit');
-  toast(moved && wasReg
+  if(ok) toast(moved && wasReg
     ? '日程が変わりました。カレンダーの予定を登録し直してください'
     : '変更を保存しました');
 }
@@ -1139,10 +1167,11 @@ function saveDone(){
   b.rating=starVal;
   b.memo=document.getElementById('md-memo').value.trim();
   b.doneDate=todayStr();
-  save(); render();
+  const ok = save();
+  render();
   closeModal('modal-done');
   showTab('arch');
-  toast('アーカイブに保存しました 🎉');
+  if(ok) toast('アーカイブに保存しました 🎉');
 }
 
 /* ---------- 共通 ---------- */
@@ -1167,8 +1196,9 @@ function delBatch(id){
   askDel('この仕込みを削除しますか？', b.name, '写真を含め、記録は元に戻せません。', ()=>{
     photoDelBatch(id);
     batches = batches.filter(x=>x.id!==id);
-    save(); render();
-    toast('削除しました');
+    const ok = save();
+    render();
+    if(ok) toast('削除しました');
   });
 }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }

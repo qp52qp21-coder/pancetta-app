@@ -6,7 +6,7 @@
 ## 技術構成
 
 - 単一の `index.html` に HTML / CSS / JavaScript をすべて内包（フレームワーク・ビルド不要）
-- データ保存は `localStorage`（キー: `pancetta-batches`）。サーバーなし、通信なし
+- データ保存は `localStorage`（キー: `pancetta-batches`）。写真の実体だけ IndexedDB（`pancetta-photos`）。サーバーなし、通信なし
 - `manifest.json` により Android Chrome で「ホーム画面に追加」するとアプリ風に起動
 - 想定端末は Google Pixel（Android / Chrome）。iPhone でも動作する必要あり
 
@@ -31,7 +31,7 @@ icon-512-maskable.png    Android用アイコン（512px / purpose:maskable）
 
 ```js
 batch = {
-  id,          // 文字列（Date.now().toString(36)）
+  id,          // 文字列（uid()）
   name,        // 仕込み名
   startDate,   // "YYYY-MM-DD" 仕込み開始日
   d1,          // 塩漬け日数（既定7）
