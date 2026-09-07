@@ -73,7 +73,15 @@
   .meta-box .v{font-size:15px;font-weight:700;}
   .meta-box .l{font-size:10px;color:var(--brown-soft);letter-spacing:.05em;}
 
-  .stage-bar{display:flex;margin-top:12px;border-radius:999px;overflow:hidden;height:10px;
+  .stage-dates{display:flex;justify-content:space-between;align-items:flex-end;
+    margin-top:14px;}
+  .stage-dates .to{text-align:right;}
+  .stage-dates .l{display:block;font-size:10px;letter-spacing:.05em;color:var(--brown-soft);}
+  .stage-dates .d{display:block;font-size:14px;font-weight:700;color:var(--brown);
+    line-height:1.35;}
+  .stage-dates .d.goal{color:var(--rose);}
+
+  .stage-bar{display:flex;margin-top:6px;border-radius:999px;overflow:hidden;height:10px;
     background:var(--cream-deep);}
   .stage-bar .s1{background:var(--rose-soft);}
   .stage-bar .s2{background:var(--rose);}
@@ -585,6 +593,11 @@ function addDays(s,n){ const d=parseD(s); d.setDate(d.getDate()+n); return d; }
 function fmt(d){ return (d.getMonth()+1)+'/'+d.getDate(); }
 const WD = ['日','月','火','水','木','金','土'];
 function fmtW(d){ return fmt(d)+'('+WD[d.getDay()]+')'; }   // 例：9/9(火)
+/* 年をまたぐ仕込みのために、今年でなければ 2027/1/9(土) と年も添える */
+function fmtWY(d){
+  const y = d.getFullYear();
+  return (y===new Date().getFullYear()? '' : y+'/') + fmtW(d);
+}
 function daysElapsed(start){
   const ms = new Date(new Date().toDateString()) - parseD(start);
   return Math.floor(ms/86400000);   // 開始日=0日目
@@ -743,6 +756,10 @@ function render(){
             <div class="sub">${gouhai}${b.spice? ' ・ '+esc(b.spice):''}</div>
           </div>
         </div>
+        <div class="stage-dates">
+          <div class="from"><span class="l">仕込み開始</span><span class="d">${fmtWY(parseD(b.startDate))}</span></div>
+          <div class="to"><span class="l">完成予定</span><span class="d goal">${fmtWY(doneDay)}</span></div>
+        </div>
         <div class="stage-bar">
           <div class="s1" style="width:${b.d1/total*100}%"></div>
           <div class="s2" style="width:${b.d2/total*100}%"></div>
@@ -751,7 +768,6 @@ function render(){
         <div class="batch-meta">
           <div class="meta-box"><div class="v">${b.meatWeight||'–'}g</div><div class="l">仕込み重量</div></div>
           <div class="meta-box"><div class="v">${lossHtml}</div><div class="l">重量変化</div></div>
-          <div class="meta-box"><div class="v">${fmt(doneDay)}</div><div class="l">完成予定</div></div>
         </div>
         <div class="btn-row">
           <button class="btn" onclick="openLog('${b.id}')">記録する</button>
