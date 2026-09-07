@@ -73,11 +73,14 @@
   .meta-box .v{font-size:15px;font-weight:700;}
   .meta-box .l{font-size:10px;color:var(--brown-soft);letter-spacing:.05em;}
 
-  .stage-dates{display:flex;justify-content:space-between;align-items:flex-end;
-    margin-top:14px;}
-  .stage-dates .to{text-align:right;}
+  .stage-dates{display:flex;align-items:flex-end;margin-top:14px;gap:6px;}
+  .stage-dates .seg{display:flex;gap:6px;}
+  .stage-dates .seg.s1{justify-content:space-between;}
+  .stage-dates .seg.s2{justify-content:flex-end;}
+  .stage-dates .pt{white-space:nowrap;}
+  .stage-dates .pt.mid,.stage-dates .pt.end{text-align:right;}
   .stage-dates .l{display:block;font-size:10px;letter-spacing:.05em;color:var(--brown-soft);}
-  .stage-dates .d{display:block;font-size:14px;font-weight:700;color:var(--brown);
+  .stage-dates .d{display:block;font-size:13.5px;font-weight:700;color:var(--brown);
     line-height:1.35;}
   .stage-dates .d.goal{color:var(--rose);}
 
@@ -757,8 +760,13 @@ function render(){
           </div>
         </div>
         <div class="stage-dates">
-          <div class="from"><span class="l">仕込み開始</span><span class="d">${fmtWY(parseD(b.startDate))}</span></div>
-          <div class="to"><span class="l">完成予定</span><span class="d goal">${fmtWY(doneDay)}</span></div>
+          <div class="seg s1" style="flex:${b.d1}">
+            <div class="pt"><span class="l">仕込み開始</span><span class="d">${fmtWY(parseD(b.startDate))}</span></div>
+            <div class="pt mid"><span class="l">塩漬け完了</span><span class="d">${fmtWY(addDays(b.startDate,b.d1))}</span></div>
+          </div>
+          <div class="seg s2" style="flex:${b.d2}">
+            <div class="pt end"><span class="l">完成予定</span><span class="d goal">${fmtWY(doneDay)}</span></div>
+          </div>
         </div>
         <div class="stage-bar">
           <div class="s1" style="width:${b.d1/total*100}%"></div>
