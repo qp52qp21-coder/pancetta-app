@@ -206,10 +206,11 @@
     touch-action:pan-y;}
   .photo-stage .btn{background:var(--cream);}
   .pv-frame{position:relative;}
+  /* 矢印は文字ではなく自前のSVGで描く。‹ › の字形は箱の中で上寄り・左右非対称なうえ、
+     端末のフォント次第でずれ方が変わるため（豚さんを自前で描いているのと同じ理由） */
   .pv-arrow{position:absolute;top:50%;transform:translateY(-50%);
     width:40px;height:40px;padding:0;border:none;border-radius:999px;
-    background:rgba(250,245,238,.85);color:var(--brown);
-    font:inherit;font-size:24px;line-height:1;cursor:pointer;
+    background:rgba(250,245,238,.85);cursor:pointer;
     display:flex;align-items:center;justify-content:center;}
   .pv-arrow.prev{left:8px;}
   .pv-arrow.next{right:8px;}
@@ -390,8 +391,18 @@
   <div class="photo-stage">
     <div class="pv-frame" id="pv-frame">
       <img id="pv-img" alt="記録した写真">
-      <button class="pv-arrow prev" id="pv-prev" onclick="albumMove(-1)" aria-label="前の写真">‹</button>
-      <button class="pv-arrow next" id="pv-next" onclick="albumMove(1)" aria-label="次の写真">›</button>
+      <button class="pv-arrow prev" id="pv-prev" onclick="albumMove(-1)" aria-label="前の写真">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M15.5 5.5 8.5 12l7 6.5" fill="none" stroke="#3B2A22" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="pv-arrow next" id="pv-next" onclick="albumMove(1)" aria-label="次の写真">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M8.5 5.5 15.5 12l-7 6.5" fill="none" stroke="#3B2A22" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
     <div class="pv-meta" id="pv-meta"></div>
     <div class="btn-row">
