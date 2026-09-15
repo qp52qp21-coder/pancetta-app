@@ -20,7 +20,10 @@
     --radius:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  html,body{background:var(--cream);color:var(--brown);
+  /* 背景色は html だけに持たせる。body にも敷くと、その不透明な背景が
+     z-index:-1 の背景の絵（.bg-art）を覆って見えなくなる */
+  html{background:var(--cream);}
+  body{color:var(--brown);
     font-family:"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic Medium","Yu Gothic",sans-serif;
     font-size:16px;line-height:1.6;}
   .app{max-width:480px;margin:0 auto;padding:0 16px 90px;}
@@ -135,6 +138,16 @@
     color:var(--brown-soft);cursor:pointer;line-height:1.4;}
   .preset.on{border-color:var(--rose);color:var(--rose);background:var(--rose-soft);}
 
+  /* 新規仕込み画面の背景。アイコンのパンチェッタを大きく置き、右下からはみ出させる。
+     画面いっぱいの白いカードに隠れてしまうので、この画面のカードだけ白を少し透かす。
+     入力欄とプリセットは #fff のままなので、文字の読みやすさは落ちない */
+  .bg-art{display:none;position:fixed;left:50%;bottom:0;transform:translateX(-50%);
+    width:480px;max-width:100%;height:0;pointer-events:none;z-index:-1;}
+  .bg-art.show{display:block;}
+  .bg-art svg{position:absolute;right:-104px;bottom:-66px;
+    width:420px;height:420px;opacity:.18;}
+  #tab-new .card{background:rgba(255,255,255,.78);}
+
   .calc-result{margin-top:14px;background:var(--cream);border-radius:12px;
     padding:14px;display:flex;gap:10px;text-align:center;}
   .calc-result>div{flex:1;}
@@ -226,6 +239,9 @@
 </head>
 <body>
 <div class="app">
+
+  <!-- 新規仕込み画面だけに出る背景の絵。中身は pancettaArt() が入れる -->
+  <div class="bg-art" id="bg-art" aria-hidden="true"></div>
 
   <header>
     <h1>パンチェッタ熟成手帳</h1>
@@ -594,6 +610,58 @@ function pig(size, mood){
     <ellipse cx="28.4" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
     <ellipse cx="35.6" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
     ${extra}
+  </svg>`;
+}
+
+/* ---------- 背景のパンチェッタ ----------
+   新規仕込み画面の背景に敷く断面の絵。アプリのアイコンと同じ図柄・同じ配色で、
+   ここだけは本文の3色ルールから外れる。
+   アイコンのPNGを薄くして敷く手は使えない。赤い四角の背景ごと1枚の絵になっており、
+   肉の赤と背景の赤がほぼ同じ色で切り抜けないため、ここで描き起こしている。 */
+function pancettaArt(){
+  /* 巻いた断面の渦。手で座標を置くより計算で出したほうが均等に巻ける */
+  const spiral = (r0, r1, turns)=>{
+    const pts = [];
+    const steps = Math.round(turns*40);
+    for(let i=0;i<=steps;i++){
+      const t = i/steps, a = t*turns*Math.PI*2, r = r0 + (r1-r0)*t;
+      pts.push((100+Math.cos(a)*r).toFixed(1)+' '+(100+Math.sin(a)*r*0.82).toFixed(1));
+    }
+    return 'M'+pts.join('L');
+  };
+  /* ローズマリーの葉。茎に沿って左右へ交互に生やす */
+  let leaves = '';
+  for(let i=0;i<10;i++){
+    const t = i/9, x = 20+t*54, y = 176-t*50, s = i%2 ? 1 : -1;
+    const lx = x - 5*s, ly = y - 6;
+    leaves += `<ellipse cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" rx="10" ry="3.2"
+      fill="#1C8340" transform="rotate(${(-40+s*36).toFixed(0)} ${lx.toFixed(1)} ${ly.toFixed(1)})"/>`;
+  }
+  /* 外皮に散る粒胡椒 */
+  let rind = '';
+  for(let i=0;i<22;i++){
+    const a = (i/22)*Math.PI*2 + 0.3;
+    const r = 66 + (i%3)*5;
+    rind += `<circle cx="${(100+Math.cos(a)*(r+14)).toFixed(1)}"
+      cy="${(100+Math.sin(a)*r*0.86).toFixed(1)}" r="${(2.2+(i%3)*0.5).toFixed(1)}" fill="#2A2320"/>`;
+  }
+  return `<svg viewBox="0 0 200 200" aria-hidden="true">
+    <defs><clipPath id="pa-face"><ellipse cx="100" cy="100" rx="75" ry="61"/></clipPath></defs>
+    <g transform="rotate(-16 100 100)">
+      <path d="M20 176 74 126" stroke="#14652F" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+      ${leaves}
+      <ellipse cx="100" cy="100" rx="89" ry="74" fill="#F0A12C"/>
+      <ellipse cx="100" cy="100" rx="75" ry="61" fill="#F7F0E3"/>
+      <g clip-path="url(#pa-face)">
+        <path d="${spiral(7, 70, 2.7)}" fill="none" stroke="#E0202F"
+              stroke-width="9" stroke-linecap="round"/>
+      </g>
+      ${rind}
+    </g>
+    <circle cx="36" cy="150" r="5" fill="#2A2320"/>
+    <circle cx="58" cy="172" r="4.4" fill="#2A2320"/>
+    <circle cx="20" cy="128" r="4.6" fill="#F3EBDC"/>
+    <circle cx="80" cy="186" r="4" fill="#F3EBDC"/>
   </svg>`;
 }
 
@@ -1345,6 +1413,7 @@ function showTab(t){
     document.getElementById('tab-'+x).classList.toggle('show', x===t);
     document.getElementById('nav-'+x).classList.toggle('active', x===t);
   });
+  document.getElementById('bg-art').classList.toggle('show', t==='new');
   window.scrollTo(0,0);
 }
 let toastTimer;
@@ -1357,6 +1426,7 @@ function toast(msg){
 
 /* ---------- 初期化 ---------- */
 document.getElementById('md-pig').innerHTML = pig(64,'happy');
+document.getElementById('bg-art').innerHTML = pancettaArt();
 document.getElementById('in-date').value = todayStr();
 load();
 
