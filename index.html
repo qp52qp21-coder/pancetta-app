@@ -816,7 +816,10 @@ function render(){
         ${b.memo? '<div class="arch-memo">'+esc(b.memo)+'</div>':''}
         ${b.logs.length? '<details class="arch-log"><summary>記録を見る（'+b.logs.length+'件）</summary>'
           + '<ul class="log-list">'+logRows(b,false)+'</ul></details>' : ''}
-        <div class="btn-row"><button class="btn quiet" onclick="delBatch('${b.id}')">削除</button></div>
+        <div class="btn-row">
+          <button class="btn" onclick="openLog('${b.id}')">記録する</button>
+          <button class="btn quiet" onclick="delBatch('${b.id}')">削除</button>
+        </div>
       </div>`;
     }).join('');
   }
@@ -859,8 +862,11 @@ function openLog(id){
   modalTarget = id;
   logSession++;
   const b = batches.find(x=>x.id===id);
+  /* 完成済みにも記録を足せる。熟成中とモーダルの見た目が同じなので、
+     書き込み先がアーカイブであることを見出しではっきりさせる */
+  const dayTxt = daysElapsed(b.startDate) + '日目';
   document.getElementById('ml-name').textContent =
-    b.name + ' ・ ' + daysElapsed(b.startDate) + '日目';
+    b.name + ' ・ ' + (b.status==='done' ? '完成済み（'+dayTxt+'）' : dayTxt);
   document.getElementById('ml-date').value  = todayStr();
   document.getElementById('ml-grams').value = '';
   document.getElementById('ml-memo').value  = '';
