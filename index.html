@@ -201,8 +201,20 @@
     display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.3;}
   .photo-view{align-items:center;background:rgba(59,42,34,.88);}
   .photo-stage{width:100%;max-width:480px;padding:16px;}
-  .photo-stage img{width:100%;border-radius:12px;background:var(--cream);display:block;}
+  /* 横スワイプは自前で拾うので、横方向のブラウザ既定動作だけ止める（縦の画面送りは残す） */
+  .photo-stage img{width:100%;border-radius:12px;background:var(--cream);display:block;
+    touch-action:pan-y;}
   .photo-stage .btn{background:var(--cream);}
+  .pv-frame{position:relative;}
+  .pv-arrow{position:absolute;top:50%;transform:translateY(-50%);
+    width:40px;height:40px;padding:0;border:none;border-radius:999px;
+    background:rgba(250,245,238,.85);color:var(--brown);
+    font:inherit;font-size:24px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;}
+  .pv-arrow.prev{left:8px;}
+  .pv-arrow.next{right:8px;}
+  .pv-arrow[hidden]{display:none;}   /* display:flex は hidden より強いので打ち消す */
+  .pv-meta{color:var(--cream);font-size:12px;text-align:center;margin-top:8px;}
 
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
     background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
@@ -376,9 +388,14 @@
 <!-- 写真の全画面表示 -->
 <div class="modal-bg photo-view" id="modal-photo">
   <div class="photo-stage">
-    <img id="pv-img" alt="記録した写真">
+    <div class="pv-frame" id="pv-frame">
+      <img id="pv-img" alt="記録した写真">
+      <button class="pv-arrow prev" id="pv-prev" onclick="albumMove(-1)" aria-label="前の写真">‹</button>
+      <button class="pv-arrow next" id="pv-next" onclick="albumMove(1)" aria-label="次の写真">›</button>
+    </div>
+    <div class="pv-meta" id="pv-meta"></div>
     <div class="btn-row">
-      <button class="btn" onclick="closeModal('modal-photo')">閉じる</button>
+      <button class="btn" onclick="closeAlbum()">閉じる</button>
       <button class="btn quiet" id="pv-del" onclick="delPhoto()">この写真を削除</button>
     </div>
   </div>
@@ -901,7 +918,7 @@ function logRows(b, withDel){
       g = '<span class="g">'+l.grams+'g</span>'+loss;
     }
     const m  = l.memo ? '<div class="memo">'+esc(l.memo)+'</div>' : '';
-    const ph = photoThumbs(l, withDel);
+    const ph = photoThumbs(l, withDel, b.id);
     const x  = withDel ? '<button class="x" onclick="askDelLog(\''+l.id+'\')">✕</button>' : '';
     return '<li><span class="d">'+fmt(parseD(l.date))+'</span>'
          + '<span class="t">'+g+m+ph+'</span>'+x+'</li>';
@@ -936,7 +953,6 @@ function saveLog(){
    IndexedDB から取り出した Blob は、表示のたびに一時URLを作る必要がある。
    作りっぱなしだとメモリに残るので、描き直す前に必ず破棄する。 */
 let objUrls = [];
-let viewingPhoto = null;   // 全画面表示中の写真ID
 let viewingCanDel = false; // その写真を削除してよいか（アーカイブから開いたときは false）
 
 function freeUrls(){
@@ -949,11 +965,11 @@ function freeUrls(){
 
 /* 一覧・履歴に置くサムネイルの器。画像は hydratePhotos() が後から流し込む。
    canDel は全画面表示に削除ボタンを出すかどうか。アーカイブは読み取り専用なので false */
-function photoThumbs(l, canDel){
+function photoThumbs(l, canDel, batchId){
   if(!l.photos || !l.photos.length) return '';
   return '<div class="thumbs">'
     + l.photos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="記録した写真" '
-        + 'onclick="viewPhoto(\''+p+'\','+(canDel?'true':'false')+')">').join('')
+        + 'onclick="viewPhoto(\''+p+'\','+(canDel?'true':'false')+',\''+batchId+'\')">').join('')
     + '</div>';
 }
 
@@ -986,7 +1002,7 @@ function renderPhotoArea(){
     '<label>写真 ※任意</label>'
     + '<div class="thumbs" id="ml-thumbs">'
     +   draftPhotos.map(p=>'<img class="thumb" data-photo="'+p+'" alt="追加した写真" '
-          + 'onclick="viewPhoto(\''+p+'\',true)">').join('')
+          + 'onclick="viewPhoto(\''+p+'\',true,\'\')">').join('')
     +   (draftPhotos.length < 4
           ? '<button class="thumb-add" onclick="document.getElementById(\'ml-file\').click()">＋<br>追加</button>'
           : '')
@@ -1032,39 +1048,118 @@ function pickPhotos(input){
   });
 }
 
-function viewPhoto(photoId, canDel){
-  viewingPhoto = photoId;
+/* ---------- 写真アルバム ----------
+   全画面表示は1枚ではなく「その仕込みの写真を日付順に並べたもの」を送る。
+   読み込むのは常に表示中の1枚だけ。全部まとめて開くと、枚数ぶんの一時URLを
+   同時に抱えることになるため。 */
+let album      = [];    // {id, date} の配列
+let albumAt    = -1;    // その何枚目を見ているか
+const albumUrls = new Map();  // 表示済みの一時URL。行き来しても読み直さない
+
+/* batchId が空のときは、まだ保存していない下書きの写真を束ねる。
+   logs は日付の昇順なので、そのまま並べれば日付順になる */
+function albumOf(batchId){
+  if(!batchId) return draftPhotos.map(id=>({id, date:null}));
+  const b = batches.find(x=>x.id===batchId);
+  if(!b) return [];
+  const a = [];
+  b.logs.forEach(l=> (l.photos||[]).forEach(id=> a.push({id, date:l.date})));
+  return a;
+}
+
+function viewPhoto(photoId, canDel, batchId){
+  album   = albumOf(batchId);
+  albumAt = album.findIndex(p=>p.id===photoId);
+  /* 並びの中に見つからないことは無いはずだが、その場合も1枚だけは見せる */
+  if(albumAt < 0){ album = [{id:photoId, date:null}]; albumAt = 0; }
   /* 完成済みの記録は読み取り専用なので、そこから開いたときは削除ボタンを出さない。
      隠すだけだと処理そのものは呼べてしまうので、可否も控えて delPhoto 側でも見る */
   viewingCanDel = !!canDel;
   document.getElementById('pv-del').hidden = !canDel;
-  const img = document.getElementById('pv-img');
-  img.removeAttribute('src');
-  photoGet(photoId).then(rec=>{
-    if(!rec){ toast('写真が見つかりません'); return; }
-    const u = URL.createObjectURL(rec.blob);
-    objUrls.push(u);
-    img.src = u;
-  });
+  showAlbum();
   document.getElementById('modal-photo').classList.add('show');
 }
 
-/* 全画面表示からの1枚削除。誤タップしにくい位置なので確認は挟まない */
+function showAlbum(){
+  const cur = album[albumAt];
+  if(!cur) return;
+  const img = document.getElementById('pv-img');
+  /* 端では止める。一周させると、同じ写真に戻ったことに気づけない */
+  document.getElementById('pv-prev').hidden = albumAt <= 0;
+  document.getElementById('pv-next').hidden = albumAt >= album.length - 1;
+  document.getElementById('pv-meta').textContent =
+    (cur.date ? fmt(parseD(cur.date)) + ' ・ ' : '') + (albumAt+1) + ' / ' + album.length;
+
+  const hit = albumUrls.get(cur.id);
+  if(hit){ img.src = hit; return; }
+  img.removeAttribute('src');
+  const want = cur.id;
+  photoGet(want).then(rec=>{
+    if(!rec){ toast('写真が見つかりません'); return; }
+    /* 読み込んでいる間にさらに送られていたら、古い画像を貼らない */
+    if(!album[albumAt] || album[albumAt].id !== want) return;
+    const u = URL.createObjectURL(rec.blob);
+    albumUrls.set(want, u);
+    img.src = u;
+  });
+}
+
+function albumMove(step){
+  const next = albumAt + step;
+  if(next < 0 || next >= album.length) return;
+  albumAt = next;
+  showAlbum();
+}
+
+/* アルバムを閉じるときに一時URLをまとめて捨てる。
+   objUrls とは別に持つ（render() が freeUrls() で objUrls を捨てるため、
+   混ぜると表示中の写真まで道連れになる） */
+function closeAlbum(){
+  albumUrls.forEach(u=>URL.revokeObjectURL(u));
+  albumUrls.clear();
+  album = []; albumAt = -1;
+  document.getElementById('pv-img').removeAttribute('src');
+  closeModal('modal-photo');
+}
+
+/* 指の横移動でアルバムを送る。縦に動かしたときは送らない（画面を送るつもりのことがある） */
+(function(){
+  const frame = document.getElementById('pv-frame');
+  let x0 = null, y0 = null;
+  frame.addEventListener('touchstart', e=>{
+    const t = e.changedTouches[0]; x0 = t.clientX; y0 = t.clientY;
+  }, {passive:true});
+  frame.addEventListener('touchend', e=>{
+    if(x0 === null) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - x0, dy = t.clientY - y0;
+    x0 = null;
+    if(Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    albumMove(dx < 0 ? 1 : -1);   /* 左へ払ったら次へ */
+  }, {passive:true});
+})();
+
+/* 全画面表示からの1枚削除。誤タップしにくい位置なので確認は挟まない。
+   見ながら間引けるよう、消したら次の写真へ進む */
 function delPhoto(){
-  const id = viewingPhoto;
-  if(!id || !viewingCanDel) return;   /* アーカイブの写真は消させない */
+  const cur = album[albumAt];
+  if(!cur || !viewingCanDel) return;   /* アーカイブの写真は消させない */
+  const id = cur.id;
   photoDel([id]);
   batches.forEach(b=> b.logs.forEach(l=>{
     if(l.photos) l.photos = l.photos.filter(p=>p!==id);
   }));
   draftPhotos = draftPhotos.filter(p=>p!==id);
-  viewingPhoto = null;
+  const u = albumUrls.get(id);
+  if(u){ URL.revokeObjectURL(u); albumUrls.delete(id); }
+  album.splice(albumAt, 1);
+  if(albumAt >= album.length) albumAt = album.length - 1;  /* 最後の1枚を消したとき */
   const ok = save();
   render();
-  closeModal('modal-photo');
   if(document.getElementById('modal-log').classList.contains('show')){
     renderLogList(); renderPhotoArea();
   }
+  if(album.length) showAlbum(); else closeAlbum();
   if(ok) toast('写真を削除しました');
 }
 
