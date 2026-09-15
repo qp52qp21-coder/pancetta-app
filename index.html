@@ -28,7 +28,6 @@
   /* ヘッダー */
   header{padding:22px 4px 10px;}
   header h1{font-size:22px;letter-spacing:.08em;font-weight:700;}
-  header h1 .spiral{display:inline-block;margin-right:6px;transform:translateY(3px);}
   header p{font-size:12px;color:var(--brown-soft);letter-spacing:.05em;}
 
   /* タブ（下部固定） */
@@ -229,7 +228,7 @@
 <div class="app">
 
   <header>
-    <h1><span class="spiral" id="logo"></span>パンチェッタ熟成手帳</h1>
+    <h1>パンチェッタ熟成手帳</h1>
     <p>仕込みから完成まで、熟成のすべてを記録する</p>
   </header>
 
@@ -1357,7 +1356,6 @@ function toast(msg){
 }
 
 /* ---------- 初期化 ---------- */
-document.getElementById('logo').innerHTML   = pig(32,'calm');
 document.getElementById('md-pig').innerHTML = pig(64,'happy');
 document.getElementById('in-date').value = todayStr();
 load();
