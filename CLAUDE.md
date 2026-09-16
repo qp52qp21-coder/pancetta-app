@@ -26,8 +26,14 @@ icon-source.svg          アイコンの元絵。4枚の PNG はここから書�
 ## 公開先
 
 - リポジトリ: https://github.com/qp52qp21-coder/pancetta-app
-- 公開URL: https://qp52qp21-coder.github.io/pancetta-app/
-- GitHub Pages（main ブランチ / root）で公開。`git push` すると1〜3分で反映される
+- **公開URL（正式）: https://pancetta-app.pages.dev**
+  - Cloudflare Pages（プロジェクト名 `pancetta-app`）。2026-09-17 に移行し、記録も書き出し・読み込みで引っ越し済み
+  - GitHub 連携で `main` に `git push` すると自動で公開される（1〜2分）。ビルド設定は「プリセットなし・ビルドコマンド空・出力 `/`」
+  - GitHub 側の許可（GitHub App「Cloudflare Workers and Pages」）は `pancetta-app` だけに限定してある
+- 旧URL: https://qp52qp21-coder.github.io/pancetta-app/
+  - GitHub Pages（main ブランチ / root）。移行前の記録が残っているので、しばらくは止めずに並行して公開している
+  - 同じ push で一緒に更新される。止めるかどうかは依頼者が決める。止める前に、旧URL側の記録が要らないことを本人に確かめる
+- 記録も写真も URL（オリジン）ごとに別保管。公開先を変えると記録が見えなくなるので、引っ越しは「記録の書き出し・読み込み」で行う
 
 ## データ構造
 
