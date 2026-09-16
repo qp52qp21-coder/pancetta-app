@@ -175,6 +175,17 @@
   .arch-log[open] summary::before{content:'▾ ';}
   .arch-log .log-list{margin-top:0;}
 
+  /* 記録の書き出し・読み込み */
+  .bk-note{font-size:12px;color:var(--soft);margin-top:6px;}
+  .bk-note:first-child{margin-top:0;}
+  .bk-last{font-size:11px;letter-spacing:1px;color:var(--sumi);margin-top:12px;}
+  .mi-sum{list-style:none;margin-top:12px;border-top:1px solid var(--rule);}
+  .mi-sum li{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;
+    border-bottom:1px solid var(--track);font-size:13px;}
+  .mi-sum li b{font-family:var(--serif);font-weight:700;color:var(--ink);white-space:nowrap;}
+  .mi-sum .names{display:block;font-size:11px;color:var(--soft);margin-top:2px;}
+  button.btn:disabled{opacity:.5;cursor:default;}
+
   /* ===== モーダル ===== */
   .modal-bg{position:fixed;inset:0;background:rgba(34,34,34,.55);display:none;
     align-items:flex-end;justify-content:center;z-index:100;}
@@ -238,7 +249,10 @@
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
     background:var(--ink);color:#fff;font-size:13px;letter-spacing:.04em;padding:10px 18px;
     border-radius:var(--radius);opacity:0;pointer-events:none;transition:opacity .3s;z-index:90;
-    white-space:nowrap;}   /* モーダル(100)より下。モーダル表示中は文面に重ならない */
+    /* 文面の長さに合わせ、画面幅を超えるときだけ折り返す。
+       left:50% のままだと幅が画面の半分に縮むので、width:max-content で文面の幅を取る */
+    width:max-content;max-width:calc(100vw - 32px);text-align:center;line-height:1.5;}
+    /* z-index はモーダル(100)より下。モーダル表示中は文面に重ならない */
   .toast.show{opacity:1;}
   @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
 </style>
@@ -316,6 +330,21 @@
   <section id="tab-arch">
     <h2>完成アーカイブ</h2>
     <div id="arch-list"></div>
+
+    <h2>記録の書き出し・読み込み</h2>
+    <div class="card">
+      <p class="bk-note">熟成中・完成済みのすべての記録と写真を1つのファイルにまとめて、スマホの「ダウンロード」に保存します。
+        別のURLで開いたアプリへの引っ越しや、データが消えたときの控えに使えます。</p>
+      <p class="bk-note">読み込むと、手元に無い仕込みだけを追加します。今ある記録は消えません。</p>
+      <p class="bk-last" id="bk-last"></p>
+      <div class="btn-row">
+        <button class="btn primary" id="bk-export" onclick="exportBackup()">ファイルに保存</button>
+        <button class="btn" onclick="document.getElementById('bk-file').click()">読み込む</button>
+      </div>
+      <!-- 種類で絞らない。Android の一部のファイル選択画面は .json を選べない表示にしてしまうため。
+           中身は読み込んだあとで確かめる -->
+      <input type="file" id="bk-file" hidden onchange="pickBackup(this)">
+    </div>
   </section>
 
   <nav>
@@ -386,6 +415,21 @@
     <label>味のメモ（次回の改善に）</label>
     <textarea id="md-memo" rows="3" placeholder="例：塩3%はちょうど良い。次はチリ多めに。"></textarea>
     <div class="btn-row"><button class="btn primary" onclick="saveDone()">アーカイブに保存</button></div>
+  </div>
+</div>
+
+<!-- 書き出したファイルの取り込み確認モーダル -->
+<div class="modal-bg" id="modal-import">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('modal-import')">✕</button>
+    <h3>記録を取り込みますか？</h3>
+    <p class="bk-note" id="mi-file"></p>
+    <ul class="mi-sum" id="mi-sum"></ul>
+    <p class="bk-note">今ある記録は消えません。手元にすでにある仕込みは、変えずにそのまま残します。</p>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('modal-import')">やめる</button>
+      <button class="btn primary" id="mi-go" onclick="confirmImport()">取り込む</button>
+    </div>
   </div>
 </div>
 
@@ -1347,6 +1391,161 @@ function saveDone(){
   if(ok) toast('アーカイブに保存しました');
 }
 
+/* ---------- 記録の書き出し・読み込み ----------
+   記録（localStorage）も写真（IndexedDB）も URL ごとに別々に保管されるので、
+   公開先の URL が変わると1件も見えなくなる。それを移すための仕組み。
+   写真は文字（base64）にして、記録と一緒に1つの .json に入れる。
+   読み込みの決まりは1つだけ：手元に無い仕込みは写真ごと追加し、手元にある仕込みには触らない。
+   古い控えをうっかり読み込んでも、今の記録は上書きされない。
+   設計の詳細は docs/superpowers/specs/2026-09-17-backup-design.md */
+const BK_FORMAT  = 'pancetta-techo-backup';
+const BK_VERSION = 1;
+const BK_LAST    = 'pancetta-last-export';   // 前回の書き出し日（端末ごと）
+let importPlan = null;                       // 確認の小窓に出している取り込み内容
+
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload  = ()=>res(String(r.result).split(',')[1] || '');
+    r.onerror = ()=>rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+function base64ToBlob(b64, type){
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) buf[i] = bin.charCodeAt(i);
+  return new Blob([buf], {type: type || 'image/jpeg'});
+}
+
+/* 仕込み一覧から参照されている写真IDを、どの仕込みのものかと一緒に集める */
+function photoRefs(list){
+  const refs = [];
+  list.forEach(b=> (b.logs||[]).forEach(l=> (l.photos||[]).forEach(id=> refs.push({id, batchId:b.id}))));
+  return refs;
+}
+
+/* 書き出す中身を作る。写真が見つからなかった枚数も返す */
+async function makeBackup(){
+  const photos = [];
+  let missing = 0;
+  if(photoOK){
+    for(const ref of photoRefs(batches)){
+      const rec = await photoGet(ref.id);
+      if(!rec || !rec.blob){ missing++; continue; }
+      photos.push({ id:rec.id, batchId:rec.batchId || ref.batchId, created:rec.created || null,
+                    type:rec.blob.type || 'image/jpeg', data: await blobToBase64(rec.blob) });
+    }
+  }else{
+    missing = photoRefs(batches).length;
+  }
+  const data = { format:BK_FORMAT, version:BK_VERSION, exportedAt:new Date().toISOString(),
+                 batches, photos };
+  return { json: JSON.stringify(data), batchCount: batches.length, photoCount: photos.length, missing };
+}
+
+async function exportBackup(){
+  const btn = document.getElementById('bk-export');
+  btn.disabled = true;
+  btn.textContent = '書き出し中…';
+  try{
+    const bk = await makeBackup();
+    const url = URL.createObjectURL(new Blob([bk.json], {type:'application/json'}));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pancetta-backup-' + todayStr().replaceAll('-','') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    /* すぐ破棄すると保存が始まる前に消える端末があるので、少し待つ */
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    try{ localStorage.setItem(BK_LAST, todayStr()); }catch(e){}
+    renderBackupLast();
+    toast('保存しました（仕込み'+bk.batchCount+'件・写真'+bk.photoCount+'枚）'
+          + (bk.missing ? '。写真'+bk.missing+'枚は見つからず含めていません' : ''));
+  }catch(e){
+    toast('書き出せませんでした');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'ファイルに保存';
+  }
+}
+
+function renderBackupLast(){
+  let d = null;
+  try{ d = localStorage.getItem(BK_LAST); }catch(e){}
+  document.getElementById('bk-last').textContent =
+    d ? '前回の書き出し：' + d.replaceAll('-','/') : 'まだ書き出していません';
+}
+
+/* ファイルを選んだら中身を確かめ、取り込む内容を小窓で見せる。ここではまだ何も保存しない */
+function pickBackup(input){
+  const file = input.files && input.files[0];
+  input.value = '';   /* 同じファイルを続けて選び直せるようにする */
+  if(!file) return;
+  file.text().then(text=>{
+    let data;
+    try{ data = JSON.parse(text); }catch(e){ data = null; }
+    if(!data || data.format !== BK_FORMAT || !Array.isArray(data.batches)){
+      toast('パンチェッタ熟成手帳の書き出しファイルではありません'); return;
+    }
+    if(data.version > BK_VERSION){
+      toast('新しい版のアプリで書き出したファイルです。アプリを更新してから読み込んでください'); return;
+    }
+    const have = new Set(batches.map(b=>b.id));
+    const add  = data.batches.filter(b=> b && typeof b.id === 'string' && !have.has(b.id));
+    const keep = data.batches.length - add.length;
+    if(!add.length){
+      toast('新しく追加する仕込みはありません（すべて取り込み済みです）'); return;
+    }
+    /* 追加する仕込みから参照されている写真だけを持ち込む */
+    const need   = new Set(photoRefs(add).map(r=>r.id));
+    const photos = (Array.isArray(data.photos) ? data.photos : []).filter(p=> p && need.has(p.id) && p.data);
+    importPlan = { add, photos };
+
+    const when = data.exportedAt ? fmt(new Date(data.exportedAt)) + ' に書き出したファイル' : '';
+    document.getElementById('mi-file').textContent = file.name + (when ? '（' + when + '）' : '');
+    const names = add.slice(0,5).map(b=>esc(b.name)).join('、') + (add.length>5 ? ' ほか' : '');
+    document.getElementById('mi-sum').innerHTML =
+        '<li><span>新しく追加する仕込み<span class="names">'+names+'</span></span><b>'+add.length+'件</b></li>'
+      + '<li><span>一緒に取り込む写真</span><b>'+photos.length+'枚</b></li>'
+      + (keep ? '<li><span>手元にあるので変えない仕込み</span><b>'+keep+'件</b></li>' : '');
+    document.getElementById('mi-go').disabled = false;
+    document.getElementById('modal-import').classList.add('show');
+  }).catch(()=> toast('ファイルを読めませんでした'));
+}
+
+/* 写真を先に保存し、そのあと記録を保存する。記録だけ先に入ると写真の無い記録が一瞬できるため */
+async function confirmImport(){
+  if(!importPlan) return;
+  const go = document.getElementById('mi-go');
+  go.disabled = true;
+  const { add, photos } = importPlan;
+  let saved = 0, failed = 0;
+  if(photoOK){
+    for(const p of photos){
+      try{
+        await photoPut({ id:p.id, batchId:p.batchId, blob:base64ToBlob(p.data, p.type),
+                         created:p.created || Date.now() });
+        saved++;
+      }catch(e){ failed++; }
+    }
+  }else{
+    failed = photos.length;
+  }
+  /* 読み込む間に同じ仕込みが増えていないか、念のため確かめ直す */
+  const have = new Set(batches.map(b=>b.id));
+  const fresh = add.filter(b=>!have.has(b.id));
+  batches.push(...fresh);
+  migrate();          /* 古い形（weights）のファイルでも今の形に揃える */
+  const ok = save();
+  importPlan = null;
+  closeModal('modal-import');
+  render();
+  if(ok) toast('取り込みました（仕込み'+fresh.length+'件・写真'+saved+'枚）'
+               + (failed ? '。写真'+failed+'枚は取り込めませんでした' : ''));
+}
+
 /* ---------- 共通 ---------- */
 /* 削除確認モーダル。仕込みの削除と記録の削除で使い回す */
 let delAction = null;
@@ -1394,6 +1593,7 @@ function toast(msg){
 document.getElementById('md-pig').innerHTML = pig(64,'happy');
 document.getElementById('in-date').value = todayStr();
 load();
+renderBackupLast();
 
 /* 写真機能が使えるかを最初に判定する。使えない端末では写真欄を出さない
    （重量とメモは今までどおり動く） */
