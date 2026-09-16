@@ -7,231 +7,232 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#B14A5A">
+<meta name="theme-color" content="#EFEBDD">
+<!-- 見出しの明朝体だけ読み込む。Pixel には明朝体が入っておらず、見出しまでゴシックになるため。
+     読めないとき（圏外など）は端末の明朝→serif に落ちるだけで、アプリは普通に動く -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap">
 <style>
-  /* ===== 配色は3色ルール：生成り背景 / 濃茶 / パンチェッタ・ローズ ===== */
+  /* ===== 配色・文字・部品の決まりは DESIGN.md に従う（和モダン） =====
+     奥行きは影ではなく面の色の段差で作る。角は2px。臙脂は熟成の印にだけ使う */
   :root{
-    --cream:#FAF5EE;
-    --cream-deep:#F1E8DC;
-    --brown:#3B2A22;
-    --brown-soft:#7A6558;
-    --rose:#B14A5A;
-    --rose-soft:#E7CBCF;
-    --radius:14px;
+    --sand:#F6F4EF;      /* 地 */
+    --flax:#EFEBDD;      /* ヘッダー・タブ・選択中のプリセット */
+    --paper:#FFFFFF;     /* カード・小窓・入力欄 */
+    --charcoal:#3C3C3C;  /* お知らせの帯 */
+    --ink:#222222;       /* 見出し・数字・トースト */
+    --sumi:#444444;      /* 本文・主ボタン */
+    --soft:#666666;      /* 補足・ラベル */
+    --rule:#DDD6C4;      /* 細い罫 */
+    --track:#E8E2D2;     /* 進み具合の「まだ」 */
+    --enji:#8C2F2A;      /* 臙脂。進み具合・完成予定日・★・減少率に限る */
+    --salt:#C8BFA9;      /* 塩漬けの棒・★の空き */
+    --radius:2px;
+    --serif:"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho",serif;
+    --sans:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",Meiryo,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  /* 背景色は html だけに持たせる。body にも敷くと、その不透明な背景が
-     z-index:-1 の背景の絵（.bg-art）を覆って見えなくなる */
-  html{background:var(--cream);}
-  body{color:var(--brown);
-    font-family:"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic Medium","Yu Gothic",sans-serif;
-    font-size:16px;line-height:1.6;}
+  html,body{background:var(--sand);}
+  body{color:var(--sumi);font-family:var(--sans);font-size:14px;font-weight:500;line-height:1.6;}
   .app{max-width:480px;margin:0 auto;padding:0 16px 90px;}
 
-  /* ヘッダー */
-  header{padding:22px 4px 10px;}
-  header h1{font-size:22px;letter-spacing:.08em;font-weight:700;}
-  header p{font-size:12px;color:var(--brown-soft);letter-spacing:.05em;}
+  /* ヘッダー。亜麻色の帯を列の端まで敷く */
+  header{margin:0 -16px;padding:24px 20px 14px;background:var(--flax);}
+  header h1{font-family:var(--serif);font-size:22px;font-weight:400;letter-spacing:.08em;
+    line-height:1.5;color:var(--ink);}
+  header p{font-size:11px;letter-spacing:1px;color:var(--soft);}
 
-  /* タブ（下部固定） */
-  nav{position:fixed;left:0;right:0;bottom:0;background:var(--cream);
-    border-top:1px solid var(--cream-deep);display:flex;max-width:480px;margin:0 auto;z-index:50;}
-  nav button{flex:1;padding:12px 0 14px;background:none;border:none;font:inherit;
-    font-size:13px;color:var(--brown-soft);cursor:pointer;}
-  nav button.active{color:var(--rose);font-weight:700;}
-  nav button .ico{display:block;font-size:18px;line-height:1.2;}
+  /* タブ（下部固定）。絵文字は使わず文字だけ。選択中は上辺に墨の線 */
+  nav{position:fixed;left:0;right:0;bottom:0;background:var(--flax);
+    border-top:1px solid var(--rule);display:flex;max-width:480px;margin:0 auto;z-index:50;}
+  nav button{flex:1;margin-top:-1px;padding:15px 0 16px;background:none;border:none;
+    border-top:2px solid transparent;font:inherit;font-size:13px;letter-spacing:.04em;
+    color:var(--soft);cursor:pointer;}
+  nav button.active{color:var(--ink);font-weight:700;border-top-color:var(--ink);}
+  nav button:focus-visible{outline:2px solid var(--sumi);outline-offset:-4px;}
 
   section{display:none;}
   section.show{display:block;animation:fade .25s ease;}
   @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
 
-  h2{font-size:15px;letter-spacing:.12em;color:var(--brown-soft);margin:18px 2px 10px;
-    font-weight:700;}
+  h2{font-family:var(--serif);font-size:16px;font-weight:700;letter-spacing:.06em;
+    line-height:1.5;color:var(--ink);margin:22px 2px 10px;}
 
-  .card{background:#fff;border:1px solid var(--cream-deep);border-radius:var(--radius);
-    padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(59,42,34,.06);}
+  .card{background:var(--paper);border-radius:var(--radius);padding:18px 16px;margin-bottom:12px;}
 
   /* ===== 仕込みカード ===== */
   .batch-head{display:flex;align-items:center;gap:14px;}
   .ring-wrap{position:relative;width:88px;height:88px;flex-shrink:0;}
   .ring-wrap svg{transform:rotate(-90deg);}
-  .ring-bg{fill:none;stroke:var(--cream-deep);stroke-width:8;}
-  .ring-fg{fill:none;stroke:var(--rose);stroke-width:8;stroke-linecap:round;
+  .ring-bg{fill:none;stroke:var(--track);stroke-width:5;}
+  .ring-fg{fill:none;stroke:var(--enji);stroke-width:5;stroke-linecap:butt;
     transition:stroke-dashoffset .6s ease;}
   .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;line-height:1.15;}
-  .ring-center .day{font-size:20px;font-weight:700;color:var(--rose);}
-  .ring-center .total{font-size:11px;color:var(--brown-soft);}
+  .ring-center .day{font-family:var(--serif);font-size:20px;font-weight:700;color:var(--ink);}
+  .ring-center .total{font-size:10px;letter-spacing:1px;color:var(--soft);margin-top:3px;}
 
   .batch-info{flex:1;min-width:0;}
-  .batch-info .name{font-size:17px;font-weight:700;word-break:break-all;}
-  .stage-badge{display:inline-block;font-size:12px;font-weight:700;color:#fff;
-    background:var(--rose);border-radius:999px;padding:2px 10px;margin:4px 0;}
-  .stage-badge.done{background:var(--brown);}
-  .batch-info .sub{font-size:12px;color:var(--brown-soft);}
+  .batch-info .name{font-family:var(--serif);font-size:17px;font-weight:700;line-height:1.4;
+    color:var(--ink);word-break:break-all;}
+  .stage-badge{display:inline-block;font-size:11px;letter-spacing:1px;color:var(--sumi);
+    border:1px solid var(--sumi);border-radius:var(--radius);padding:1px 8px;margin:6px 0 4px;}
+  .stage-badge.done{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .batch-info .sub{font-size:12px;color:var(--soft);}
 
-  .batch-meta{display:flex;gap:8px;margin-top:12px;}
-  .meta-box{flex:1;background:var(--cream);border-radius:10px;padding:8px 6px;text-align:center;}
-  .meta-box .v{font-size:15px;font-weight:700;}
-  .meta-box .l{font-size:10px;color:var(--brown-soft);letter-spacing:.05em;}
+  .batch-meta{display:flex;gap:8px;margin-top:14px;}
+  .meta-box{flex:1;background:var(--sand);border-radius:var(--radius);padding:10px 6px;text-align:center;}
+  .meta-box .v{font-family:var(--serif);font-size:17px;font-weight:700;line-height:1.4;color:var(--ink);}
+  .meta-box .l{font-size:10px;letter-spacing:1px;color:var(--soft);}
 
-  .stage-dates{display:flex;align-items:flex-end;margin-top:14px;gap:6px;}
+  .stage-dates{display:flex;align-items:flex-end;margin-top:16px;gap:6px;}
   .stage-dates .seg{display:flex;gap:6px;}
   .stage-dates .seg.s1{justify-content:space-between;}
   .stage-dates .seg.s2{justify-content:flex-end;}
   .stage-dates .pt{white-space:nowrap;}
   .stage-dates .pt.mid,.stage-dates .pt.end{text-align:right;}
-  .stage-dates .l{display:block;font-size:10px;letter-spacing:.05em;color:var(--brown-soft);}
-  .stage-dates .d{display:block;font-size:13.5px;font-weight:700;color:var(--brown);
-    line-height:1.35;}
-  .stage-dates .d.goal{color:var(--rose);}
+  .stage-dates .l{display:block;font-size:10px;letter-spacing:1px;color:var(--soft);}
+  .stage-dates .d{display:block;font-size:13px;font-weight:700;line-height:1.4;color:var(--ink);}
+  .stage-dates .d.goal{color:var(--enji);}
 
-  .stage-bar{display:flex;margin-top:6px;border-radius:999px;overflow:hidden;height:10px;
-    background:var(--cream-deep);}
-  .stage-bar .s1{background:var(--rose-soft);}
-  .stage-bar .s2{background:var(--rose);}
-  .stage-labels{display:flex;justify-content:space-between;font-size:10px;
-    color:var(--brown-soft);margin-top:3px;}
+  .stage-bar{display:flex;gap:2px;margin-top:6px;overflow:hidden;height:4px;}
+  .stage-bar .s1{background:var(--salt);}
+  .stage-bar .s2{background:var(--enji);}
+  .stage-labels{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;
+    color:var(--soft);margin-top:4px;}
 
-  .btn-row{display:flex;gap:8px;margin-top:12px;}
+  .btn-row{display:flex;gap:8px;margin-top:14px;}
   .btn-row.tight{margin-top:8px;}
-  button.btn{flex:1;font:inherit;font-size:14px;font-weight:700;padding:10px 0;
-    border-radius:10px;border:1.5px solid var(--rose);background:#fff;color:var(--rose);
-    cursor:pointer;}
-  button.btn.primary{background:var(--rose);color:#fff;}
-  button.btn.quiet{border-color:var(--cream-deep);color:var(--brown-soft);flex:0 0 auto;
-    padding:10px 14px;}
-  button.btn.cal{border-color:var(--rose-soft);font-size:13px;}
-  button.btn.cal.reg{border-color:var(--cream-deep);color:var(--brown-soft);}
+  button.btn{flex:1;min-height:44px;font:inherit;font-size:14px;font-weight:500;letter-spacing:.04em;
+    padding:10px 0;border-radius:var(--radius);border:1px solid var(--sumi);
+    background:var(--paper);color:var(--sumi);cursor:pointer;}
+  button.btn.primary{background:var(--sumi);color:#fff;}
+  button.btn.quiet{border-color:var(--rule);color:var(--soft);flex:0 0 auto;padding:10px 16px;}
+  button.btn.cal{border-color:var(--rule);font-size:13px;}
+  button.btn.cal.reg{background:var(--sand);color:var(--soft);}
+  button.btn:focus-visible,.preset:focus-visible{outline:2px solid var(--sumi);outline-offset:2px;}
 
-  /* ===== お知らせカード（起動時の気づき） ===== */
-  .notice{background:var(--rose-soft);border:1px solid var(--rose);border-radius:var(--radius);
-    padding:13px 16px;margin-bottom:14px;}
-  .notice h3{font-size:13px;color:var(--rose);letter-spacing:.1em;margin-bottom:6px;}
+  /* ===== お知らせ（起動時の気づき）。その日に気づいてほしい事だけなので、墨の帯で目を引く ===== */
+  .notice{background:var(--charcoal);color:#fff;border-radius:var(--radius);
+    padding:14px 16px;margin:16px 0 0;}
+  .notice h3{font-family:var(--serif);font-size:13px;font-weight:700;letter-spacing:.1em;margin-bottom:6px;}
   .notice ul{list-style:none;}
-  .notice li{font-size:13.5px;padding:4px 0;}
-  .notice li+li{border-top:1px dashed var(--rose);}
+  .notice li{font-size:13px;padding:5px 0;}
+  .notice li+li{border-top:1px solid rgba(255,255,255,.2);}
   .notice li b{font-weight:700;}
 
-  .empty{padding:32px 12px 36px;text-align:center;color:var(--brown-soft);font-size:14px;}
-  .empty .pig{margin-bottom:6px;}
+  .empty{padding:32px 12px 36px;text-align:center;color:var(--soft);font-size:13px;}
+  .empty .pig{margin-bottom:8px;}
 
-  /* 豚さん */
+  /* 豚さん（墨色の線画） */
   .pig{vertical-align:middle;overflow:visible;}
-  header .pig{margin-right:2px;}
-  .arch-name .pig{margin-right:5px;}
+  .arch-name .pig{margin-right:6px;}
   .md-pig{text-align:center;padding-top:6px;}
 
   /* ===== フォーム ===== */
-  label{display:block;font-size:12px;font-weight:700;color:var(--brown-soft);
-    margin:14px 2px 4px;letter-spacing:.05em;}
+  label{display:block;font-size:11px;font-weight:500;letter-spacing:1px;color:var(--soft);
+    margin:16px 2px 5px;}
+  .card > label:first-child{margin-top:0;}   /* カードの余白と重なって上が空きすぎるため */
+  /* 文字は16px以上。iPhone は16px未満の入力欄に触れると画面を拡大してしまう */
   input[type=text],input[type=number],input[type=date],textarea{
-    width:100%;font:inherit;font-size:16px;padding:10px 12px;border-radius:10px;
-    border:1.5px solid var(--cream-deep);background:#fff;color:var(--brown);}
-  input:focus,textarea:focus{outline:2px solid var(--rose);outline-offset:1px;}
+    width:100%;font:inherit;font-size:16px;padding:10px 12px;border-radius:var(--radius);
+    border:1px solid var(--rule);background:var(--paper);color:var(--ink);}
+  input:focus,textarea:focus{outline:2px solid var(--sumi);outline-offset:1px;}
   .row2{display:flex;gap:10px;}
-  .row2>div{flex:1;}
+  .row2>div{flex:1;min-width:0;}
 
   .preset-row{display:flex;gap:8px;margin-top:6px;}
-  .preset{flex:1;font:inherit;font-size:12.5px;font-weight:700;padding:9px 4px;
-    border-radius:10px;border:1.5px solid var(--cream-deep);background:#fff;
-    color:var(--brown-soft);cursor:pointer;line-height:1.4;}
-  .preset.on{border-color:var(--rose);color:var(--rose);background:var(--rose-soft);}
+  .preset{flex:1;font:inherit;font-size:12.5px;padding:10px 4px;line-height:1.5;
+    border-radius:var(--radius);border:1px solid var(--rule);background:var(--paper);
+    color:var(--soft);cursor:pointer;}
+  .preset.on{background:var(--flax);border-color:var(--sumi);color:var(--ink);font-weight:700;}
 
-  /* 新規仕込み画面の背景。アイコンのパンチェッタを大きく置き、右下からはみ出させる。
-     画面いっぱいの白いカードに隠れてしまうので、この画面のカードだけ白を少し透かす。
-     入力欄とプリセットは #fff のままなので、文字の読みやすさは落ちない */
-  .bg-art{display:none;position:fixed;left:50%;bottom:0;transform:translateX(-50%);
-    width:480px;max-width:100%;height:0;pointer-events:none;z-index:-1;}
-  .bg-art.show{display:block;}
-  .bg-art svg{position:absolute;right:-104px;bottom:-66px;
-    width:420px;height:420px;opacity:.18;}
-  #tab-new .card{background:rgba(255,255,255,.78);}
-
-  .calc-result{margin-top:14px;background:var(--cream);border-radius:12px;
+  .calc-result{margin-top:16px;background:var(--sand);border-radius:var(--radius);
     padding:14px;display:flex;gap:10px;text-align:center;}
   .calc-result>div{flex:1;}
-  .calc-result .v{font-size:22px;font-weight:700;color:var(--rose);}
-  .calc-result .v small{font-size:13px;}
-  .calc-result .l{font-size:11px;color:var(--brown-soft);}
+  .calc-result .v{font-family:var(--serif);font-size:24px;font-weight:700;line-height:1.3;color:var(--enji);}
+  .calc-result .v small{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--soft);}
+  .calc-result .l{font-size:10px;letter-spacing:1px;color:var(--soft);}
 
   /* ===== アーカイブ ===== */
-  .arch-name{font-size:16px;font-weight:700;}
-  .stars{color:var(--rose);font-size:16px;letter-spacing:2px;}
-  .arch-sub{font-size:12px;color:var(--brown-soft);margin-top:2px;}
-  .arch-memo{font-size:13.5px;margin-top:8px;background:var(--cream);
-    border-radius:10px;padding:8px 10px;white-space:pre-wrap;}
-  .arch-log{margin-top:10px;}
-  .arch-log summary{font-size:12.5px;font-weight:700;color:var(--rose);cursor:pointer;
-    list-style:none;padding:6px 0;}
+  .arch-name{font-family:var(--serif);font-size:17px;font-weight:700;line-height:1.4;color:var(--ink);}
+  .stars{color:var(--enji);font-size:15px;letter-spacing:3px;margin-top:2px;}
+  .stars .off{color:var(--salt);}
+  .arch-sub{font-size:12px;color:var(--soft);margin-top:4px;}
+  .arch-memo{font-size:13px;margin-top:10px;background:var(--sand);
+    border-radius:var(--radius);padding:10px 12px;white-space:pre-wrap;}
+  .arch-log{margin-top:12px;border-top:1px solid var(--track);}
+  .arch-log summary{font-size:12px;letter-spacing:.04em;color:var(--sumi);cursor:pointer;
+    list-style:none;padding:10px 0 4px;}
   .arch-log summary::-webkit-details-marker{display:none;}
-  .arch-log summary::before{content:'▸ ';}
+  .arch-log summary::before{content:'▸ ';color:var(--soft);}
   .arch-log[open] summary::before{content:'▾ ';}
   .arch-log .log-list{margin-top:0;}
 
   /* ===== モーダル ===== */
-  .modal-bg{position:fixed;inset:0;background:rgba(59,42,34,.45);display:none;
+  .modal-bg{position:fixed;inset:0;background:rgba(34,34,34,.55);display:none;
     align-items:flex-end;justify-content:center;z-index:100;}
   .modal-bg.show{display:flex;}
-  .modal{background:var(--cream);width:100%;max-width:480px;border-radius:18px 18px 0 0;
-    padding:20px 18px 28px;max-height:85vh;overflow-y:auto;}
-  .modal h3{font-size:16px;margin-bottom:4px;}
-  .modal .close-x{float:right;border:none;background:none;font-size:20px;
-    color:var(--brown-soft);cursor:pointer;padding:0 4px;}
+  .modal{background:var(--paper);width:100%;max-width:480px;border-radius:var(--radius) var(--radius) 0 0;
+    padding:22px 18px 28px;max-height:85vh;overflow-y:auto;}
+  .modal h3{font-family:var(--serif);font-size:17px;font-weight:700;line-height:1.5;
+    color:var(--ink);margin-bottom:2px;}
+  .modal .close-x{float:right;min-width:36px;min-height:36px;border:none;background:none;
+    font-size:17px;color:var(--soft);cursor:pointer;padding:0 4px;}
   .star-input{display:flex;gap:6px;margin-top:6px;}
-  .star-input button{font-size:28px;background:none;border:none;cursor:pointer;
-    color:var(--cream-deep);padding:2px;}
-  .star-input button.on{color:var(--rose);}
+  .star-input button{font-size:30px;line-height:1;background:none;border:none;cursor:pointer;
+    color:var(--salt);padding:2px;}
+  .star-input button.on{color:var(--enji);}
 
   /* カレンダー登録リンク */
-  .cal-link{display:block;margin-top:10px;text-decoration:none;background:#fff;
-    border:1.5px solid var(--rose);border-radius:12px;padding:11px 14px;}
-  .cal-link .cal-date{display:block;font-size:11.5px;font-weight:700;
-    color:var(--brown-soft);letter-spacing:.06em;}
-  .cal-link .cal-label{display:block;font-size:15px;font-weight:700;color:var(--rose);}
+  .cal-link{display:block;margin-top:10px;text-decoration:none;background:var(--sand);
+    border:1px solid var(--rule);border-radius:var(--radius);padding:12px 14px;}
+  .cal-link .cal-date{display:block;font-size:11px;letter-spacing:1px;color:var(--soft);}
+  .cal-link .cal-label{display:block;font-family:var(--serif);font-size:15px;font-weight:700;color:var(--ink);}
 
-  .log-list{font-size:13px;margin-top:14px;border-top:1px solid var(--cream-deep);}
-  .log-list li{display:flex;gap:8px;align-items:flex-start;padding:8px 2px;
-    border-bottom:1px dashed var(--cream-deep);list-style:none;}
-  .log-list .d{color:var(--brown-soft);flex:0 0 42px;font-size:12px;padding-top:1px;}
-  .log-list .t{flex:1;min-width:0;line-height:1.5;word-break:break-word;}
-  .log-list .g{font-weight:700;}
-  .log-list .loss{color:var(--rose);font-weight:700;margin-left:6px;}
+  .log-list{font-size:13px;margin-top:16px;border-top:1px solid var(--rule);}
+  .log-list li{display:flex;gap:8px;align-items:flex-start;padding:10px 2px;
+    border-bottom:1px solid var(--track);list-style:none;}
+  .log-list .d{color:var(--soft);flex:0 0 42px;font-size:12px;padding-top:1px;}
+  .log-list .t{flex:1;min-width:0;line-height:1.6;word-break:break-word;}
+  .log-list .g{font-family:var(--serif);font-weight:700;color:var(--ink);}
+  .log-list .loss{color:var(--enji);font-size:12px;font-weight:700;margin-left:6px;}
   .log-list .memo{white-space:pre-wrap;margin-top:2px;}
-  .log-list .x{border:none;background:none;color:var(--brown-soft);font-size:15px;
-    cursor:pointer;padding:2px 4px;flex:0 0 auto;line-height:1;}
-  .edit-note{font-size:11.5px;color:var(--rose);background:var(--rose-soft);
-    border-radius:8px;padding:7px 10px;margin-top:6px;line-height:1.5;}
+  .log-list .x{border:none;background:none;color:var(--soft);font-size:14px;
+    cursor:pointer;padding:4px 6px;flex:0 0 auto;line-height:1;}
+  .edit-note{font-size:11.5px;color:var(--enji);background:var(--sand);
+    border-radius:var(--radius);padding:8px 10px;margin-top:6px;line-height:1.6;}
 
   /* 写真 */
   .thumbs{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
-  .thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;
-    border:1px solid var(--cream-deep);background:var(--rose-soft);cursor:pointer;}
+  .thumb{width:52px;height:52px;border-radius:var(--radius);object-fit:cover;
+    border:1px solid var(--rule);background:var(--track);cursor:pointer;}
   .log-list .thumb{width:44px;height:44px;}
-  .thumb-add{width:52px;height:52px;border-radius:8px;border:1.5px dashed var(--cream-deep);
-    background:#fff;color:var(--brown-soft);font:inherit;font-size:11px;cursor:pointer;
+  .thumb-add{width:52px;height:52px;border-radius:var(--radius);border:1px dashed var(--salt);
+    background:var(--paper);color:var(--soft);font:inherit;font-size:11px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.3;}
-  .photo-view{align-items:center;background:rgba(59,42,34,.88);}
+  .photo-view{align-items:center;background:rgba(34,34,34,.94);}
   .photo-stage{width:100%;max-width:480px;padding:16px;}
   /* 横スワイプは自前で拾うので、横方向のブラウザ既定動作だけ止める（縦の画面送りは残す） */
-  .photo-stage img{width:100%;border-radius:12px;background:var(--cream);display:block;
+  .photo-stage img{width:100%;border-radius:var(--radius);background:var(--charcoal);display:block;
     touch-action:pan-y;}
-  .photo-stage .btn{background:var(--cream);}
+  .photo-stage .btn{background:var(--paper);}
   .pv-frame{position:relative;}
   /* 矢印は文字ではなく自前のSVGで描く。‹ › の字形は箱の中で上寄り・左右非対称なうえ、
      端末のフォント次第でずれ方が変わるため（豚さんを自前で描いているのと同じ理由） */
   .pv-arrow{position:absolute;top:50%;transform:translateY(-50%);
-    width:40px;height:40px;padding:0;border:none;border-radius:999px;
-    background:rgba(250,245,238,.85);cursor:pointer;
+    width:40px;height:40px;padding:0;border:none;border-radius:var(--radius);
+    background:rgba(255,255,255,.9);cursor:pointer;
     display:flex;align-items:center;justify-content:center;}
   .pv-arrow.prev{left:8px;}
   .pv-arrow.next{right:8px;}
   .pv-arrow[hidden]{display:none;}   /* display:flex は hidden より強いので打ち消す */
-  .pv-meta{color:var(--cream);font-size:12px;text-align:center;margin-top:8px;}
+  .pv-meta{color:#fff;opacity:.85;font-size:12px;letter-spacing:1px;text-align:center;margin-top:10px;}
 
   .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);
-    background:var(--brown);color:var(--cream);font-size:13px;padding:9px 18px;
-    border-radius:999px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:90;
+    background:var(--ink);color:#fff;font-size:13px;letter-spacing:.04em;padding:10px 18px;
+    border-radius:var(--radius);opacity:0;pointer-events:none;transition:opacity .3s;z-index:90;
     white-space:nowrap;}   /* モーダル(100)より下。モーダル表示中は文面に重ならない */
   .toast.show{opacity:1;}
   @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
@@ -239,9 +240,6 @@
 </head>
 <body>
 <div class="app">
-
-  <!-- 新規仕込み画面だけに出る背景の絵。中身は pancettaArt() が入れる -->
-  <div class="bg-art" id="bg-art" aria-hidden="true"></div>
 
   <header>
     <h1>パンチェッタ熟成手帳</h1>
@@ -301,9 +299,9 @@
   </section>
 
   <nav>
-    <button id="nav-home" class="active" onclick="showTab('home')"><span class="ico">🥓</span>熟成中</button>
-    <button id="nav-new" onclick="showTab('new')"><span class="ico">＋</span>新規仕込み</button>
-    <button id="nav-arch" onclick="showTab('arch')"><span class="ico">📖</span>アーカイブ</button>
+    <button id="nav-home" class="active" onclick="showTab('home')">熟成中</button>
+    <button id="nav-new" onclick="showTab('new')">新規仕込み</button>
+    <button id="nav-arch" onclick="showTab('arch')">アーカイブ</button>
   </nav>
 </div>
 
@@ -312,7 +310,7 @@
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-edit')">✕</button>
     <h3>仕込みを編集</h3>
-    <p style="font-size:12px;color:var(--brown-soft);" id="me-name"></p>
+    <p style="font-size:12px;color:var(--soft);" id="me-name"></p>
     <label>仕込み名</label>
     <input type="text" id="me-title">
     <label>仕込み開始日</label>
@@ -342,7 +340,7 @@
   <div class="modal">
     <button class="close-x" onclick="closeLog()">✕</button>
     <h3>今日の記録</h3>
-    <p style="font-size:12px;color:var(--brown-soft);" id="ml-name"></p>
+    <p style="font-size:12px;color:var(--soft);" id="ml-name"></p>
     <div class="row2">
       <div><label>日付</label><input type="date" id="ml-date"></div>
       <div><label>重量（g）※任意</label>
@@ -361,8 +359,8 @@
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-done')">✕</button>
     <div class="md-pig" id="md-pig"></div>
-    <h3 style="text-align:center;">完成おめでとうございます 🎉</h3>
-    <p style="font-size:12px;color:var(--brown-soft);text-align:center;" id="md-name"></p>
+    <h3 style="text-align:center;">完成おめでとうございます</h3>
+    <p style="font-size:12px;color:var(--soft);text-align:center;" id="md-name"></p>
     <label>味の評価</label>
     <div class="star-input" id="md-stars"></div>
     <label>味のメモ（次回の改善に）</label>
@@ -376,8 +374,8 @@
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-del')">✕</button>
     <h3 id="dl-title">この仕込みを削除しますか？</h3>
-    <p style="font-size:12px;color:var(--brown-soft);margin-top:4px;" id="dl-name"></p>
-    <p style="font-size:12px;color:var(--brown-soft);" id="dl-note">削除すると記録は元に戻せません。</p>
+    <p style="font-size:12px;color:var(--soft);margin-top:4px;" id="dl-name"></p>
+    <p style="font-size:12px;color:var(--soft);" id="dl-note">削除すると記録は元に戻せません。</p>
     <div class="btn-row">
       <button class="btn" onclick="closeModal('modal-del')">やめる</button>
       <button class="btn primary" onclick="confirmDel()">削除する</button>
@@ -389,13 +387,13 @@
 <div class="modal-bg" id="modal-cal">
   <div class="modal">
     <button class="close-x" onclick="closeModal('modal-cal')">✕</button>
-    <h3>🔔 通知をカレンダーに登録</h3>
-    <p style="font-size:12px;color:var(--brown-soft);" id="mc-name"></p>
+    <h3>通知をカレンダーに登録</h3>
+    <p style="font-size:12px;color:var(--soft);" id="mc-name"></p>
     <p style="font-size:13px;margin-top:12px;">下のボタンを押すとGoogleカレンダーが開きます。内容は入力済みなので「保存」を押すだけです。</p>
     <div id="mc-links"></div>
-    <p style="font-size:11.5px;color:var(--rose);margin-top:12px;line-height:1.55;">
+    <p style="font-size:11.5px;color:var(--enji);margin-top:12px;line-height:1.55;">
       ※前に登録した予定は、カレンダーアプリで手で削除してください。アプリから消すことはできません。</p>
-    <p style="font-size:11.5px;color:var(--brown-soft);margin-top:12px;line-height:1.55;">
+    <p style="font-size:11.5px;color:var(--soft);margin-top:12px;line-height:1.55;">
       ※通知が鳴る時刻はGoogleカレンダーの設定に従います（既定では予定の30分前）。ちょうど5:00に鳴らすには、カレンダー側で通知を「0分前」に変更してください。</p>
     <div class="btn-row"><button class="btn" onclick="closeModal('modal-cal')">閉じる</button></div>
   </div>
@@ -408,13 +406,13 @@
       <img id="pv-img" alt="記録した写真">
       <button class="pv-arrow prev" id="pv-prev" onclick="albumMove(-1)" aria-label="前の写真">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path d="M15.5 5.5 8.5 12l7 6.5" fill="none" stroke="#3B2A22" stroke-width="2.4"
+          <path d="M15.5 5.5 8.5 12l7 6.5" fill="none" stroke="#222222" stroke-width="2.4"
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
       <button class="pv-arrow next" id="pv-next" onclick="albumMove(1)" aria-label="次の写真">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path d="M8.5 5.5 15.5 12l-7 6.5" fill="none" stroke="#3B2A22" stroke-width="2.4"
+          <path d="M8.5 5.5 15.5 12l-7 6.5" fill="none" stroke="#222222" stroke-width="2.4"
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
@@ -583,85 +581,33 @@ function shrink(file){
 }
 
 /* ---------- 豚さん（SVGイラスト） ----------
-   絵文字だと端末ごとに絵柄と色が変わるため、3色ルールに合わせて自前で描く。
+   絵文字だと端末ごとに絵柄と色が変わるため、自前で描く。
+   和モダンに合わせて墨色の線画。顔の内側は白で塗る（耳の線が顔に透けないように。
+   豚さんが載るのはカードや小窓など白い面なので、塗りは見えず線画に見える）。
+   鼻の中だけ地の色で塗って形を見せる。
    mood: 'calm'（ふつう） / 'sleep'（おやすみ） / 'happy'（うれしい） */
 function pig(size, mood){
+  const INK = '#444444';
+  const line = `stroke="${INK}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"`;
   const eyes =
-    mood==='sleep' ? '<path d="M19.5 30q4 4 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
-                   + '<path d="M36.5 30q4 4 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
-  : mood==='happy' ? '<path d="M19.5 31q4-5 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
-                   + '<path d="M36.5 31q4-5 8 0" fill="none" stroke="#3B2A22" stroke-width="2.2" stroke-linecap="round"/>'
-  :                  '<circle cx="23.5" cy="29.5" r="2.5" fill="#3B2A22"/>'
-                   + '<circle cx="40.5" cy="29.5" r="2.5" fill="#3B2A22"/>';
+    mood==='sleep' ? `<path d="M19.5 30q4 4 8 0" fill="none" ${line}/><path d="M36.5 30q4 4 8 0" fill="none" ${line}/>`
+  : mood==='happy' ? `<path d="M19.5 31q4-5 8 0" fill="none" ${line}/><path d="M36.5 31q4-5 8 0" fill="none" ${line}/>`
+  :                  `<circle cx="23.5" cy="29.5" r="2.3" fill="${INK}"/><circle cx="40.5" cy="29.5" r="2.3" fill="${INK}"/>`;
   const extra = mood==='sleep'
-    ? '<text x="52" y="16" font-size="11" font-weight="700" fill="#B14A5A" opacity=".55">z</text>'
-    + '<text x="45" y="9" font-size="8" font-weight="700" fill="#B14A5A" opacity=".4">z</text>'
+    ? `<text x="52" y="16" font-size="11" font-weight="700" fill="${INK}" opacity=".5">z</text>`
+    + `<text x="45" y="9" font-size="8" font-weight="700" fill="${INK}" opacity=".35">z</text>`
     : mood==='happy'
-    ? '<path d="M9 16v6M6 19h6M55 12v5M52.5 14.5h5" stroke="#B14A5A" stroke-width="2" stroke-linecap="round" opacity=".6"/>'
+    ? `<path d="M9 16v6M6 19h6M55 12v5M52.5 14.5h5" stroke="${INK}" stroke-width="1.8" stroke-linecap="round" opacity=".45"/>`
     : '';
   return `<svg class="pig" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">
-    <path d="M16 21Q12.5 7 25 13Z" fill="#E7CBCF" stroke="#B14A5A" stroke-width="2.4" stroke-linejoin="round"/>
-    <path d="M48 21Q51.5 7 39 13Z" fill="#E7CBCF" stroke="#B14A5A" stroke-width="2.4" stroke-linejoin="round"/>
-    <ellipse cx="32" cy="33" rx="21" ry="19" fill="#E7CBCF" stroke="#B14A5A" stroke-width="2.4"/>
-    <ellipse cx="16.5" cy="36.5" rx="4" ry="2.6" fill="#B14A5A" opacity=".3"/>
-    <ellipse cx="47.5" cy="36.5" rx="4" ry="2.6" fill="#B14A5A" opacity=".3"/>
+    <path d="M16 21Q12.5 7 25 13Z" fill="#FFFFFF" ${line}/>
+    <path d="M48 21Q51.5 7 39 13Z" fill="#FFFFFF" ${line}/>
+    <ellipse cx="32" cy="33" rx="21" ry="19" fill="#FFFFFF" ${line}/>
     ${eyes}
-    <ellipse cx="32" cy="40" rx="10" ry="7.5" fill="#FAF5EE" stroke="#B14A5A" stroke-width="2.4"/>
-    <ellipse cx="28.4" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
-    <ellipse cx="35.6" cy="40" rx="1.7" ry="2.5" fill="#B14A5A"/>
+    <ellipse cx="32" cy="40" rx="10" ry="7.5" fill="#F6F4EF" ${line}/>
+    <ellipse cx="28.4" cy="40" rx="1.6" ry="2.4" fill="${INK}"/>
+    <ellipse cx="35.6" cy="40" rx="1.6" ry="2.4" fill="${INK}"/>
     ${extra}
-  </svg>`;
-}
-
-/* ---------- 背景のパンチェッタ ----------
-   新規仕込み画面の背景に敷く断面の絵。アプリのアイコンと同じ図柄・同じ配色で、
-   ここだけは本文の3色ルールから外れる。
-   アイコンのPNGを薄くして敷く手は使えない。赤い四角の背景ごと1枚の絵になっており、
-   肉の赤と背景の赤がほぼ同じ色で切り抜けないため、ここで描き起こしている。 */
-function pancettaArt(){
-  /* 巻いた断面の渦。手で座標を置くより計算で出したほうが均等に巻ける */
-  const spiral = (r0, r1, turns)=>{
-    const pts = [];
-    const steps = Math.round(turns*40);
-    for(let i=0;i<=steps;i++){
-      const t = i/steps, a = t*turns*Math.PI*2, r = r0 + (r1-r0)*t;
-      pts.push((100+Math.cos(a)*r).toFixed(1)+' '+(100+Math.sin(a)*r*0.82).toFixed(1));
-    }
-    return 'M'+pts.join('L');
-  };
-  /* ローズマリーの葉。茎に沿って左右へ交互に生やす */
-  let leaves = '';
-  for(let i=0;i<10;i++){
-    const t = i/9, x = 20+t*54, y = 176-t*50, s = i%2 ? 1 : -1;
-    const lx = x - 5*s, ly = y - 6;
-    leaves += `<ellipse cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" rx="10" ry="3.2"
-      fill="#1C8340" transform="rotate(${(-40+s*36).toFixed(0)} ${lx.toFixed(1)} ${ly.toFixed(1)})"/>`;
-  }
-  /* 外皮に散る粒胡椒 */
-  let rind = '';
-  for(let i=0;i<22;i++){
-    const a = (i/22)*Math.PI*2 + 0.3;
-    const r = 66 + (i%3)*5;
-    rind += `<circle cx="${(100+Math.cos(a)*(r+14)).toFixed(1)}"
-      cy="${(100+Math.sin(a)*r*0.86).toFixed(1)}" r="${(2.2+(i%3)*0.5).toFixed(1)}" fill="#2A2320"/>`;
-  }
-  return `<svg viewBox="0 0 200 200" aria-hidden="true">
-    <defs><clipPath id="pa-face"><ellipse cx="100" cy="100" rx="75" ry="61"/></clipPath></defs>
-    <g transform="rotate(-16 100 100)">
-      <path d="M20 176 74 126" stroke="#14652F" stroke-width="3.4" stroke-linecap="round" fill="none"/>
-      ${leaves}
-      <ellipse cx="100" cy="100" rx="89" ry="74" fill="#F0A12C"/>
-      <ellipse cx="100" cy="100" rx="75" ry="61" fill="#F7F0E3"/>
-      <g clip-path="url(#pa-face)">
-        <path d="${spiral(7, 70, 2.7)}" fill="none" stroke="#E0202F"
-              stroke-width="9" stroke-linecap="round"/>
-      </g>
-      ${rind}
-    </g>
-    <circle cx="36" cy="150" r="5" fill="#2A2320"/>
-    <circle cx="58" cy="172" r="4.4" fill="#2A2320"/>
-    <circle cx="20" cy="128" r="4.6" fill="#F3EBDC"/>
-    <circle cx="80" cy="186" r="4" fill="#F3EBDC"/>
   </svg>`;
 }
 
@@ -794,7 +740,7 @@ function addBatch(){
   document.getElementById('in-name').value='';
   document.getElementById('in-spice').value='';
   showTab('home');
-  if(ok) toast('仕込みを登録しました 🥓');
+  if(ok) toast('仕込みを登録しました');
   /* 登録直後が最も設定しやすいので、通知登録の画面を続けて開く */
   setTimeout(()=>openCal(b.id), 400);
 }
@@ -808,7 +754,7 @@ function render(){
   const curing = batches.filter(b=>b.status==='curing');
   if(curing.length===0){
     list.innerHTML = '<div class="card empty">'+pig(76,'sleep')
-      +'<br>熟成中の仕込みはありません。<br>「＋ 新規仕込み」から始めましょう。</div>';
+      +'<br>熟成中の仕込みはありません。<br>下の「新規仕込み」から始めましょう。</div>';
   }else{
     list.innerHTML = curing.map(b=>{
       const total = b.d1+b.d2;
@@ -882,7 +828,7 @@ function render(){
         </div>
         <div class="btn-row tight">
           <button class="btn cal ${b.calReg?'reg':''}" onclick="openCal('${b.id}')">
-            ${b.calReg? '🔔 通知は登録済み' : '🔔 通知をカレンダーに登録'}</button>
+            ${b.calReg? '通知は登録済み' : '通知をカレンダーに登録'}</button>
         </div>
       </div>`;
     }).join('');
@@ -905,7 +851,7 @@ function render(){
       return `
       <div class="card">
         <div class="arch-name">${pig(24,'happy')}${esc(b.name)}</div>
-        <div class="stars">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>
+        <div class="stars">${'★'.repeat(b.rating)}<span class="off">${'★'.repeat(5-b.rating)}</span></div>
         <div class="arch-sub">${b.startDate.replaceAll('-','/')} 仕込み ・ 塩${b.saltPct}% / 砂糖${b.sugarPct}% ${loss}</div>
         ${b.spice? '<div class="arch-sub">スパイス：'+esc(b.spice)+'</div>':''}
         ${b.memo? '<div class="arch-memo">'+esc(b.memo)+'</div>':''}
@@ -940,7 +886,7 @@ function renderNotice(){
     }
   });
   box.innerHTML = msgs.length===0 ? '' :
-    '<div class="notice"><h3>🔔 お知らせ</h3><ul>'
+    '<div class="notice"><h3>お知らせ</h3><ul>'
     + msgs.map(m=>'<li><b>'+esc(m[0])+'</b><br>'+m[1]+'</li>').join('')
     + '</ul></div>';
 }
@@ -1377,7 +1323,7 @@ function saveDone(){
   render();
   closeModal('modal-done');
   showTab('arch');
-  if(ok) toast('アーカイブに保存しました 🎉');
+  if(ok) toast('アーカイブに保存しました');
 }
 
 /* ---------- 共通 ---------- */
@@ -1413,7 +1359,6 @@ function showTab(t){
     document.getElementById('tab-'+x).classList.toggle('show', x===t);
     document.getElementById('nav-'+x).classList.toggle('active', x===t);
   });
-  document.getElementById('bg-art').classList.toggle('show', t==='new');
   window.scrollTo(0,0);
 }
 let toastTimer;
@@ -1426,7 +1371,6 @@ function toast(msg){
 
 /* ---------- 初期化 ---------- */
 document.getElementById('md-pig').innerHTML = pig(64,'happy');
-document.getElementById('bg-art').innerHTML = pancettaArt();
 document.getElementById('in-date').value = todayStr();
 load();
 
